@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -7,14 +7,14 @@ import { users } from "./models/auth";
 export * from "./models/auth";
 
 // Enums
-export const userRoleEnum = pgEnum("user_role", ["montador", "partner", "admin"]);
+export const userRoleEnum = pgEnum("user_role", ["montador", "partner", "admin", "marcenaria", "lojista"]);
 export const serviceStatusEnum = pgEnum("service_status", ["draft", "published", "scheduled", "in_progress", "completed", "cancelled", "disputed"]);
 export const partnershipStatusEnum = pgEnum("partnership_status", ["pending", "active", "rejected", "blocked"]);
 export const complexityLevelEnum = pgEnum("complexity_level", ["low", "medium", "high", "expert"]);
 
 // Profiles
 export const profiles = pgTable("profiles", {
-  id: text("id").primaryKey().references(() => users.id, { onDelete: "cascade" }), // 1:1 with users
+  id: text("id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   role: userRoleEnum("role").default("montador").notNull(),
   fullName: text("full_name"),
   phone: text("phone"),
@@ -24,9 +24,6 @@ export const profiles = pgTable("profiles", {
   skills: text("skills").array(),
   experienceYears: integer("experience_years"),
   region: text("region"),
-  // company_id is circular, adding it but referencing companies table which is defined below. 
-  // Note: Drizzle handles circular references in definitions if we use the arrow function in references, 
-  // but for raw SQL order matters. Drizzle push handles it.
   companyId: integer("company_id"), 
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -50,12 +47,20 @@ export const companies = pgTable("companies", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Circular FK for profiles -> companies (Drizzle doesn't strictly enforce order in TS, but good to be clear)
-// We'll manage the FK constraint logic via Drizzle relations or manual SQL if needed, 
-// but for standard usage, just having the ID column is often enough for application layer.
-// To be safe and follow the requested schema strictly, we'd add the FK. 
-// However, circular deps in createInsertSchema can be annoying. 
-// I will keep companyId as integer above.
+// Calendar Events
+export const calendarEvents = pgTable("calendar_events", {
+  id: serial("id").primaryKey(),
+  profileId: text("profile_id").references(() => profiles.id).notNull(),
+  serviceId: integer("service_id").references(() => (services as any).id),
+  title: text("title").notNull(),
+  description: text("description"),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  type: text("type").notNull().default("appointment"), // e.g., 'appointment', 'availability', 'service'
+  isAvailable: boolean("is_available").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 // Partnerships
 export const partnerships = pgTable("partnerships", {
@@ -84,8 +89,8 @@ export const services = pgTable("services", {
   clientInfo: jsonb("client_info").$type<Record<string, any>>().default({}),
   addressFull: text("address_full").notNull(),
   scheduledFor: timestamp("scheduled_for"),
-  durationHours: integer("duration_hours"), // simplified from numeric
-  price: integer("price"), // Storing as cents to avoid floating point issues, or string. User said DECIMAL(10,2). Integer cents is safer.
+  durationHours: integer("duration_hours"),
+  price: integer("price"),
   requiredSkills: text("required_skills").array(),
   documents: text("documents").array(),
   serviceDetails: jsonb("service_details").$type<Record<string, any>>().default({}),
@@ -96,82 +101,43 @@ export const services = pgTable("services", {
 
 // Relations
 export const profilesRelations = relations(profiles, ({ one, many }) => ({
-  user: one(users, {
-    fields: [profiles.id],
-    references: [users.id],
-  }),
-  company: one(companies, {
-    fields: [profiles.companyId],
-    references: [companies.id],
-  }),
+  user: one(users, { fields: [profiles.id], references: [users.id] }),
+  company: one(companies, { fields: [profiles.companyId], references: [companies.id] }),
   ownedCompanies: many(companies, { relationName: "owner" }),
   partnerships: many(partnerships),
   assignedServices: many(services, { relationName: "montador" }),
+  calendarEvents: many(calendarEvents),
 }));
 
 export const companiesRelations = relations(companies, ({ one, many }) => ({
-  owner: one(profiles, {
-    fields: [companies.ownerId],
-    references: [profiles.id],
-    relationName: "owner",
-  }),
+  owner: one(profiles, { fields: [companies.ownerId], references: [profiles.id], relationName: "owner" }),
   partnerships: many(partnerships),
   services: many(services),
 }));
 
-export const partnershipsRelations = relations(partnerships, ({ one }) => ({
-  company: one(companies, {
-    fields: [partnerships.companyId],
-    references: [companies.id],
-  }),
-  montador: one(profiles, {
-    fields: [partnerships.montadorId],
-    references: [profiles.id],
-  }),
+export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
+  profile: one(profiles, { fields: [calendarEvents.profileId], references: [profiles.id] }),
+  service: one(services, { fields: [calendarEvents.serviceId], references: [services.id] }),
 }));
 
-export const servicesRelations = relations(services, ({ one }) => ({
-  company: one(companies, {
-    fields: [services.companyId],
-    references: [companies.id],
-  }),
-  montador: one(profiles, {
-    fields: [services.montadorId],
-    references: [profiles.id],
-    relationName: "montador",
-  }),
-  creator: one(profiles, {
-    fields: [services.creatorId],
-    references: [profiles.id],
-    relationName: "creator", // Assuming creator relation
-  }),
+export const partnershipsRelations = relations(partnerships, ({ one }) => ({
+  company: one(companies, { fields: [partnerships.companyId], references: [companies.id] }),
+  montador: one(profiles, { fields: [partnerships.montadorId], references: [profiles.id] }),
+}));
+
+export const servicesRelations = relations(services, ({ one, many }) => ({
+  company: one(companies, { fields: [services.companyId], references: [companies.id] }),
+  montador: one(profiles, { fields: [services.montadorId], references: [profiles.id], relationName: "montador" }),
+  creator: one(profiles, { fields: [services.creatorId], references: [profiles.id], relationName: "creator" }),
+  calendarEvents: many(calendarEvents),
 }));
 
 // Schemas
-export const insertProfileSchema = createInsertSchema(profiles).omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true 
-});
-
-export const insertCompanySchema = createInsertSchema(companies).omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true 
-});
-
-export const insertPartnershipSchema = createInsertSchema(partnerships).omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true 
-});
-
-export const insertServiceSchema = createInsertSchema(services).omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true,
-  completedAt: true
-});
+export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPartnershipSchema = createInsertSchema(partnerships).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertServiceSchema = createInsertSchema(services).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type Profile = typeof profiles.$inferSelect;
@@ -181,3 +147,5 @@ export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type Partnership = typeof partnerships.$inferSelect;
 export type Service = typeof services.$inferSelect;
 export type InsertService = z.infer<typeof insertServiceSchema>;
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
