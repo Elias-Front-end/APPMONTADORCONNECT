@@ -1,0 +1,177 @@
+import { z } from 'zod';
+import { 
+  insertProfileSchema, 
+  insertCompanySchema, 
+  insertServiceSchema, 
+  insertPartnershipSchema,
+  profiles, 
+  companies, 
+  services, 
+  partnerships,
+  userRoleEnum,
+  serviceStatusEnum,
+  partnershipStatusEnum,
+  complexityLevelEnum
+} from './schema';
+
+export const errorSchemas = {
+  validation: z.object({
+    message: z.string(),
+    field: z.string().optional(),
+  }),
+  notFound: z.object({
+    message: z.string(),
+  }),
+  internal: z.object({
+    message: z.string(),
+  }),
+  unauthorized: z.object({
+    message: z.string(),
+  }),
+};
+
+export const api = {
+  profiles: {
+    me: {
+      method: 'GET' as const,
+      path: '/api/profiles/me',
+      responses: {
+        200: z.custom<typeof profiles.$inferSelect>(),
+        404: errorSchemas.notFound, // Profile might not exist yet
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/profiles/me',
+      input: insertProfileSchema.partial(),
+      responses: {
+        200: z.custom<typeof profiles.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/profiles',
+      input: insertProfileSchema,
+      responses: {
+        201: z.custom<typeof profiles.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    }
+  },
+  companies: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/companies',
+      responses: {
+        200: z.array(z.custom<typeof companies.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/companies/:id',
+      responses: {
+        200: z.custom<typeof companies.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/companies',
+      input: insertCompanySchema,
+      responses: {
+        201: z.custom<typeof companies.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/companies/:id',
+      input: insertCompanySchema.partial(),
+      responses: {
+        200: z.custom<typeof companies.$inferSelect>(),
+        400: errorSchemas.validation,
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  services: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/services',
+      input: z.object({
+        status: z.enum(serviceStatusEnum.enumValues).optional(),
+        companyId: z.coerce.number().optional(),
+      }).optional(),
+      responses: {
+        200: z.array(z.custom<typeof services.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/services/:id',
+      responses: {
+        200: z.custom<typeof services.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/services',
+      input: insertServiceSchema,
+      responses: {
+        201: z.custom<typeof services.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/services/:id',
+      input: insertServiceSchema.partial(),
+      responses: {
+        200: z.custom<typeof services.$inferSelect>(),
+        400: errorSchemas.validation,
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  partnerships: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/partnerships',
+      responses: {
+        200: z.array(z.custom<typeof partnerships.$inferSelect>()),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/partnerships',
+      input: insertPartnershipSchema,
+      responses: {
+        201: z.custom<typeof partnerships.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/partnerships/:id',
+      input: insertPartnershipSchema.partial(),
+      responses: {
+        200: z.custom<typeof partnerships.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+  }
+};
+
+export function buildUrl(path: string, params?: Record<string, string | number>): string {
+  let url = path;
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (url.includes(`:${key}`)) {
+        url = url.replace(`:${key}`, String(value));
+      }
+    });
+  }
+  return url;
+}
