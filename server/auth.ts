@@ -5,6 +5,7 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
+import { pool } from "./db";
 import { User } from "@shared/schema";
 import connectPg from "connect-pg-simple";
 
@@ -27,7 +28,7 @@ export function setupAuth(app: Express) {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
+    pool, // Use the existing pool
     createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
@@ -77,6 +78,10 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
+      if (!req.body.username || !req.body.password) {
+        return res.status(400).send("Username and password are required");
+      }
+
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         return res.status(400).send("Username already exists");
@@ -93,6 +98,7 @@ export function setupAuth(app: Express) {
         res.status(201).json(user);
       });
     } catch (err) {
+      console.error("Registration error:", err);
       next(err);
     }
   });
