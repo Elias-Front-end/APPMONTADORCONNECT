@@ -131,7 +131,7 @@ export default function Dashboard() {
           {profile.role === 'montador' ? 'Próximos Serviços' : 'Serviços Recentes'}
         </h2>
         <Link href="/services">
-          <Button variant="link" className="text-blue-600">Ver todos</Button>
+          <Button variant="ghost" className="text-blue-600 hover:bg-blue-50">Ver todos</Button>
         </Link>
       </div>
 

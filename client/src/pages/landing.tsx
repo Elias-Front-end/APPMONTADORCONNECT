@@ -1,13 +1,15 @@
 import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight, Star, Users, ShieldCheck, Briefcase } from "lucide-react";
 
 export default function Landing() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    setLocation("/auth");
   };
 
   return (

@@ -79,7 +79,6 @@ export default function Profile() {
       } else {
         await createMutation.mutateAsync({
           ...data,
-          id: user!.id,
           avatarUrl: user?.profileImageUrl,
         });
         toast({ title: "Perfil criado!", description: "Bem-vindo ao Montador Conecta!" });
@@ -164,7 +163,7 @@ export default function Profile() {
                       <FormItem>
                         <FormLabel>Nome Completo</FormLabel>
                         <FormControl>
-                          <Input placeholder="Seu nome" {...field} />
+                          <Input placeholder="Seu nome" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -180,7 +179,7 @@ export default function Profile() {
                       <FormItem>
                         <FormLabel>WhatsApp / Telefone</FormLabel>
                         <FormControl>
-                          <Input placeholder="(00) 00000-0000" {...field} />
+                          <Input placeholder="(00) 00000-0000" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -194,7 +193,7 @@ export default function Profile() {
                       <FormItem>
                         <FormLabel>CPF</FormLabel>
                         <FormControl>
-                          <Input placeholder="000.000.000-00" {...field} />
+                          <Input placeholder="000.000.000-00" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -210,7 +209,7 @@ export default function Profile() {
                       <FormItem>
                         <FormLabel>Região de Atuação (Cidade/Bairro)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: São Paulo - Zona Sul" {...field} />
+                          <Input placeholder="Ex: São Paulo - Zona Sul" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -247,8 +246,9 @@ export default function Profile() {
                               ? "Conte sobre sua experiência, ferramentas que possui..."
                               : "Conte sobre sua loja e o que busca nos parceiros..."
                           }
-                          className="resize-none h-32"
-                          {...field} 
+                          className="min-h-[120px]"
+                          {...field}
+                          value={field.value || ""}
                         />
                       </FormControl>
                       <FormDescription>

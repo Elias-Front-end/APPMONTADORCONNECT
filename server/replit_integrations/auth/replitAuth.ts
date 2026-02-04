@@ -51,13 +51,18 @@ function updateUserSession(
 }
 
 async function upsertUser(claims: any) {
+  // Replit Auth integration disabled/deprecated in favor of local auth
+  /*
   await authStorage.upsertUser({
     id: claims["sub"],
     email: claims["email"],
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
+    username: claims["sub"], // Mock username
+    password: "", // No password for Replit auth
   });
+  */
 }
 
 export async function setupAuth(app: Express) {

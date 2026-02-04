@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type InsertService } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
+import { type InsertService } from "@shared/schema";
 
 export function useServices(filters?: { status?: string; companyId?: number }) {
   const queryKey = [api.services.list.path, filters];

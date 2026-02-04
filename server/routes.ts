@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./replit_integrations/auth";
-import { registerAuthRoutes } from "./replit_integrations/auth";
+import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
@@ -12,8 +11,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   // Setup Auth
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  setupAuth(app);
 
   // Profiles
   app.get(api.profiles.me.path, async (req, res) => {
@@ -29,7 +27,7 @@ export async function registerRoutes(
     const user = req.user as any;
     try {
       const input = api.profiles.create.input.parse({ ...req.body, id: user.id }); // force ID match
-      const profile = await storage.createProfile(input);
+      const profile = await storage.createProfile({ ...input, id: user.id });
       res.status(201).json(profile);
     } catch (err) {
       if (err instanceof z.ZodError) {

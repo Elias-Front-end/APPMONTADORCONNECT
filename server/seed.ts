@@ -1,24 +1,44 @@
 import { db } from "./db";
-import { profiles, companies, services } from "@shared/schema";
-import { authStorage } from "./replit_integrations/auth/storage";
-import { users } from "./models/auth";
+import { profiles, companies, services, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
 
 async function seed() {
   console.log("Seeding database...");
   
   try {
     // Create a demo user
-    const demoUser = await authStorage.upsertUser({
+    const passwordHash = await hashPassword("password123");
+    
+    const [demoUser] = await db.insert(users).values({
       id: "demo-user-id",
+      username: "demo_user",
+      password: passwordHash,
       email: "demo@example.com",
       firstName: "Demo",
       lastName: "User",
-    });
+    }).onConflictDoNothing().returning();
+
+    // If user already exists, fetch it
+    const user = demoUser || (await db.select().from(users).where(eq(users.id, "demo-user-id")))[0];
+
+    if (!user) {
+        console.error("Failed to create or find demo user");
+        return;
+    }
 
     // Create profile
     const [profile] = await db.insert(profiles).values({
-      id: demoUser.id,
+      id: user.id,
       role: "partner",
       fullName: "Demo Partner",
       bio: "A demo furniture store partner",

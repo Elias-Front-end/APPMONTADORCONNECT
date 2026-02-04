@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type InsertCompany } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
+import { type InsertCompany } from "@shared/schema";
 
 export function useCompanies() {
   return useQuery({

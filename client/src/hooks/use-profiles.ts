@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type InsertProfile } from "@shared/routes";
+import { api } from "@shared/routes";
+import { type InsertProfile } from "@shared/schema";
 
 export function useProfile() {
   return useQuery({

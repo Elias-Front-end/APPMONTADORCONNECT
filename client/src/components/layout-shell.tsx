@@ -23,7 +23,7 @@ interface LayoutShellProps {
 
 export function LayoutShell({ children }: LayoutShellProps) {
   const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logoutMutation } = useAuth();
   const { data: profile } = useProfile();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -76,7 +76,7 @@ export function LayoutShell({ children }: LayoutShellProps) {
       <div className="p-4 border-t border-white/10">
         <div className="flex items-center gap-3 px-4 py-3 mb-2">
           <Avatar className="w-10 h-10 border-2 border-white/10">
-            <AvatarImage src={user?.profileImageUrl} />
+            <AvatarImage src={user?.profileImageUrl || undefined} />
             <AvatarFallback>{user?.firstName?.[0]}{user?.lastName?.[0]}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
@@ -91,7 +91,7 @@ export function LayoutShell({ children }: LayoutShellProps) {
         <Button 
           variant="ghost" 
           className="w-full justify-start text-slate-400 hover:text-red-400 hover:bg-red-500/10"
-          onClick={() => logout()}
+          onClick={() => logoutMutation.mutate()}
         >
           <LogOut className="w-5 h-5 mr-3" />
           Sair
