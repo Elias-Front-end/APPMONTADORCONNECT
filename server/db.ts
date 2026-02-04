@@ -10,5 +10,13 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+// Diagnostic log to help user debug connection issues
+try {
+  const url = new URL(process.env.DATABASE_URL);
+  console.log(`[DB] Configuring connection pool to host: ${url.hostname}, port: ${url.port}, database: ${url.pathname.slice(1)}`);
+} catch (e) {
+  console.error("[DB] Invalid DATABASE_URL format provided");
+}
+
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool, { schema });
