@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import LayoutShell from "@/components/layout-shell";
+import { LayoutShell } from "@/components/layout-shell";
 import { projectCategoryEnum, montadorLevelEnum } from "@shared/schema";
 import { Loader2, Upload, X } from "lucide-react";
 import { useState } from "react";
