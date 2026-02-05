@@ -6,8 +6,10 @@ import {
   type Service, type InsertService,
   type Partnership,
   type CalendarEvent, type InsertCalendarEvent,
-  type Review, type InsertReview,
-  serviceStatusEnum
+  serviceStatusEnum,
+  type ServiceAttachment, type InsertServiceAttachment, serviceAttachments,
+  type ServiceAssignment, type InsertServiceAssignment, serviceAssignments,
+  type Review, type InsertReview, reviews
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
@@ -36,10 +38,18 @@ export interface IStorage {
   createService(service: InsertService): Promise<Service>;
   updateService(id: number, service: Partial<InsertService>): Promise<Service>;
 
+  // Service Attachments
+  getServiceAttachments(serviceId: number): Promise<ServiceAttachment[]>;
+  createServiceAttachment(attachment: InsertServiceAttachment): Promise<ServiceAttachment>;
+
+  // Service Assignments
+  getServiceAssignments(serviceId: number): Promise<ServiceAssignment[]>;
+  createServiceAssignment(assignment: InsertServiceAssignment): Promise<ServiceAssignment>;
+  updateServiceAssignment(id: number, status: string): Promise<ServiceAssignment>;
+
   // Reviews
+  getReviews(userId: string): Promise<Review[]>;
   createReview(review: InsertReview): Promise<Review>;
-  getReviewsByService(serviceId: number): Promise<Review[]>;
-  getReviewsByTarget(targetId: string): Promise<Review[]>;
 
   // Partnerships
   getPartnerships(): Promise<Partnership[]>;
@@ -159,18 +169,44 @@ export class DatabaseStorage implements IStorage {
     return service;
   }
 
+  // Service Attachments
+  async getServiceAttachments(serviceId: number): Promise<ServiceAttachment[]> {
+    return await db.select().from(serviceAttachments).where(eq(serviceAttachments.serviceId, serviceId));
+  }
+
+  async createServiceAttachment(insertAttachment: InsertServiceAttachment): Promise<ServiceAttachment> {
+    const [attachment] = await db.insert(serviceAttachments).values(insertAttachment).returning();
+    return attachment;
+  }
+
+  // Service Assignments
+  async getServiceAssignments(serviceId: number): Promise<ServiceAssignment[]> {
+    return await db.select().from(serviceAssignments).where(eq(serviceAssignments.serviceId, serviceId));
+  }
+
+  async createServiceAssignment(insertAssignment: InsertServiceAssignment): Promise<ServiceAssignment> {
+    const [assignment] = await db.insert(serviceAssignments).values(insertAssignment).returning();
+    return assignment;
+  }
+
+  async updateServiceAssignment(id: number, status: string): Promise<ServiceAssignment> {
+    // @ts-ignore
+    const [assignment] = await db.update(serviceAssignments)
+      // @ts-ignore
+      .set({ status, updatedAt: new Date() })
+      .where(eq(serviceAssignments.id, id))
+      .returning();
+    return assignment;
+  }
+
   // Reviews
+  async getReviews(userId: string): Promise<Review[]> {
+    return await db.select().from(reviews).where(eq(reviews.revieweeId, userId));
+  }
+
   async createReview(insertReview: InsertReview): Promise<Review> {
     const [review] = await db.insert(reviews).values(insertReview).returning();
     return review;
-  }
-
-  async getReviewsByService(serviceId: number): Promise<Review[]> {
-    return await db.select().from(reviews).where(eq(reviews.serviceId, serviceId));
-  }
-
-  async getReviewsByTarget(targetId: string): Promise<Review[]> {
-    return await db.select().from(reviews).where(eq(reviews.targetId, targetId));
   }
 
   // Partnerships

@@ -1,6 +1,6 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
@@ -10,16 +10,28 @@ import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import Profile from "@/pages/profile";
 import ServicesList from "@/pages/services-list";
-import CreateService from "@/pages/create-service";
-import ServiceDetails from "@/pages/service-details";
-import CalendarPage from "@/pages/calendar";
-import CompanySetup from "@/pages/company-setup";
+import OnboardingPage from "@/pages/onboarding";
 import { Loader2 } from "lucide-react";
+import { api } from "@shared/routes";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
 
-  if (isLoading) {
+  // Fetch profile to check if onboarding is needed
+  const { data: profile, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["/api/profiles/me"],
+    queryFn: async () => {
+      const res = await fetch(api.profiles.me.path);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      return res.json();
+    },
+    enabled: !!user,
+    retry: false,
+  });
+
+  if (isLoading || (user && isProfileLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -31,13 +43,32 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     return <Redirect to="/" />;
   }
 
+  // If user has no profile, redirect to onboarding
+  // BUT: Prevent redirect loop if we are already on onboarding? 
+  // ProtectedRoute is used for /profile, /services. 
+  // If we access /profile but have no profile, we should go to onboarding.
+  if (user && !profile) {
+     return <Redirect to="/onboarding" />;
+  }
+
   return <Component />;
 }
 
 function Router() {
   const { user, isLoading } = useAuth();
+  const { data: profile, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["/api/profiles/me"],
+    queryFn: async () => {
+      const res = await fetch(api.profiles.me.path);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      return res.json();
+    },
+    enabled: !!user,
+    retry: false,
+  });
 
-  if (isLoading) {
+  if (isLoading || (user && isProfileLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -48,8 +79,11 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/onboarding">
+        {user ? (profile ? <Redirect to="/" /> : <OnboardingPage />) : <Redirect to="/auth" />}
+      </Route>
       <Route path="/">
-        {user ? <Dashboard /> : <Landing />}
+        {user ? (profile ? <Dashboard /> : <Redirect to="/onboarding" />) : <Landing />}
       </Route>
       
       <Route path="/profile">
@@ -58,22 +92,6 @@ function Router() {
 
       <Route path="/services">
         <ProtectedRoute component={ServicesList} />
-      </Route>
-
-      <Route path="/services/new">
-        <ProtectedRoute component={CreateService} />
-      </Route>
-
-      <Route path="/services/:id">
-        <ProtectedRoute component={ServiceDetails} />
-      </Route>
-
-      <Route path="/calendar">
-        <ProtectedRoute component={CalendarPage} />
-      </Route>
-
-      <Route path="/company/setup">
-        <ProtectedRoute component={CompanySetup} />
       </Route>
 
       {/* Fallback to 404 */}

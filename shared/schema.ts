@@ -11,8 +11,11 @@ export const userRoleEnum = pgEnum("user_role", ["montador", "partner", "admin",
 export const serviceStatusEnum = pgEnum("service_status", ["draft", "published", "scheduled", "in_progress", "completed", "cancelled", "disputed"]);
 export const partnershipStatusEnum = pgEnum("partnership_status", ["pending", "active", "rejected", "blocked"]);
 export const complexityLevelEnum = pgEnum("complexity_level", ["low", "medium", "high", "expert"]);
+export const industryTypeEnum = pgEnum("industry_type", ["lojista", "marcenaria", "outros"]);
+export const companySizeEnum = pgEnum("company_size", ["pequena", "media", "grande"]);
 export const montadorLevelEnum = pgEnum("montador_level", ["iniciante", "intermediario", "avancado", "especialista"]);
-export const projectCategoryEnum = pgEnum("project_category", ["moveis_planejados", "cozinhas", "quartos", "escritorios", "comercial", "montagem_geral"]);
+export const fileTypeEnum = pgEnum("file_type", ["pdf", "video", "image", "other"]);
+export const assignmentStatusEnum = pgEnum("assignment_status", ["invited", "accepted", "rejected", "removed"]);
 
 // Profiles
 export const profiles = pgTable("profiles", {
@@ -27,9 +30,8 @@ export const profiles = pgTable("profiles", {
   experienceYears: integer("experience_years"),
   region: text("region"),
   companyId: integer("company_id"), 
-  score: integer("score").default(0),
+  reputationScore: integer("reputation_score").default(0),
   level: montadorLevelEnum("level").default("iniciante"),
-  completedServices: integer("completed_services").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -38,8 +40,8 @@ export const profiles = pgTable("profiles", {
 export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
   ownerId: text("owner_id").references(() => profiles.id).notNull(),
-  tradingName: text("trading_name").notNull(), // Nome Fantasia
-  corporateName: text("corporate_name"), // Razão Social
+  tradingName: text("trading_name").notNull(),
+  corporateName: text("corporate_name"),
   cnpj: text("cnpj").unique(),
   phone: text("phone"),
   emailContact: text("email_contact"),
@@ -47,8 +49,8 @@ export const companies = pgTable("companies", {
   city: text("city"),
   state: text("state"),
   zipCode: text("zip_code"),
-  segment: text("segment"), // Ramo de atuação (logista, marcenaria)
-  size: text("size"), // Porte da empresa
+  industryType: industryTypeEnum("industry_type"),
+  companySize: companySizeEnum("company_size"),
   isVerified: boolean("is_verified").default(false),
   settings: jsonb("settings").$type<Record<string, any>>().default({}),
   createdAt: timestamp("created_at").defaultNow(),
@@ -88,10 +90,9 @@ export const services = pgTable("services", {
   montadorId: text("montador_id").references(() => profiles.id),
   title: text("title").notNull(),
   description: text("description"),
-  category: projectCategoryEnum("category").default("montagem_geral"),
+  category: text("category"),
   status: serviceStatusEnum("status").default("draft"),
   complexity: complexityLevelEnum("complexity").default("medium"),
-  minQualification: montadorLevelEnum("min_qualification").default("iniciante"),
   isUrgent: boolean("is_urgent").default(false),
   clientName: text("client_name").notNull(),
   clientPhone: text("client_phone"),
@@ -99,27 +100,46 @@ export const services = pgTable("services", {
   addressFull: text("address_full").notNull(),
   scheduledFor: timestamp("scheduled_for"),
   durationHours: integer("duration_hours"),
-  price: integer("price"), // Valor em centavos
+  price: integer("price"),
   requiredSkills: text("required_skills").array(),
-  documents: text("documents").array(), // URLs de PDFs
-  videos: text("videos").array(), // URLs de vídeos
+  documents: text("documents").array(),
   serviceDetails: jsonb("service_details").$type<Record<string, any>>().default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   completedAt: timestamp("completed_at"),
+  minQualification: montadorLevelEnum("min_qualification").default("iniciante"),
 });
 
-// Reviews
+// Service Attachments (PDFs, Videos)
+export const serviceAttachments = pgTable("service_attachments", {
+  id: serial("id").primaryKey(),
+  serviceId: integer("service_id").references(() => services.id).notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileType: fileTypeEnum("file_type").notNull(),
+  fileName: text("file_name").notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
+// Service Assignments (Team Management)
+export const serviceAssignments = pgTable("service_assignments", {
+  id: serial("id").primaryKey(),
+  serviceId: integer("service_id").references(() => services.id).notNull(),
+  montadorId: text("montador_id").references(() => profiles.id).notNull(),
+  status: assignmentStatusEnum("status").default("invited"),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Reviews (Qualificação e Score)
 export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
   serviceId: integer("service_id").references(() => services.id).notNull(),
-  reviewerId: text("reviewer_id").references(() => profiles.id).notNull(),
-  targetId: text("target_id").references(() => profiles.id).notNull(),
-  rating: integer("rating").notNull(), // 1-5
-  quality: integer("quality"), // 1-5
-  punctuality: integer("punctuality"), // 1-5
-  cleanliness: integer("cleanliness"), // 1-5
-  professionalism: integer("professionalism"), // 1-5
+  reviewerId: text("reviewer_id").references(() => profiles.id).notNull(), // Company or Client
+  revieweeId: text("reviewee_id").references(() => profiles.id).notNull(), // Montador
+  ratingQuality: integer("rating_quality").notNull(),
+  ratingPunctuality: integer("rating_punctuality").notNull(),
+  ratingCleanliness: integer("rating_cleanliness").notNull(),
+  ratingProfessionalism: integer("rating_professionalism").notNull(),
   comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -131,9 +151,10 @@ export const profilesRelations = relations(profiles, ({ one, many }) => ({
   ownedCompanies: many(companies, { relationName: "owner" }),
   partnerships: many(partnerships),
   assignedServices: many(services, { relationName: "montador" }),
+  assignments: many(serviceAssignments),
   calendarEvents: many(calendarEvents),
-  reviewsWritten: many(reviews, { relationName: "reviewer" }),
-  reviewsReceived: many(reviews, { relationName: "target" }),
+  receivedReviews: many(reviews, { relationName: "reviewee" }),
+  givenReviews: many(reviews, { relationName: "reviewer" }),
 }));
 
 export const companiesRelations = relations(companies, ({ one, many }) => ({
@@ -157,13 +178,24 @@ export const servicesRelations = relations(services, ({ one, many }) => ({
   montador: one(profiles, { fields: [services.montadorId], references: [profiles.id], relationName: "montador" }),
   creator: one(profiles, { fields: [services.creatorId], references: [profiles.id], relationName: "creator" }),
   calendarEvents: many(calendarEvents),
+  attachments: many(serviceAttachments),
+  assignments: many(serviceAssignments),
   reviews: many(reviews),
+}));
+
+export const serviceAttachmentsRelations = relations(serviceAttachments, ({ one }) => ({
+  service: one(services, { fields: [serviceAttachments.serviceId], references: [services.id] }),
+}));
+
+export const serviceAssignmentsRelations = relations(serviceAssignments, ({ one }) => ({
+  service: one(services, { fields: [serviceAssignments.serviceId], references: [services.id] }),
+  montador: one(profiles, { fields: [serviceAssignments.montadorId], references: [profiles.id] }),
 }));
 
 export const reviewsRelations = relations(reviews, ({ one }) => ({
   service: one(services, { fields: [reviews.serviceId], references: [services.id] }),
   reviewer: one(profiles, { fields: [reviews.reviewerId], references: [profiles.id], relationName: "reviewer" }),
-  target: one(profiles, { fields: [reviews.targetId], references: [profiles.id], relationName: "target" }),
+  reviewee: one(profiles, { fields: [reviews.revieweeId], references: [profiles.id], relationName: "reviewee" }),
 }));
 
 // Schemas
@@ -172,6 +204,8 @@ export const insertCompanySchema = createInsertSchema(companies).omit({ id: true
 export const insertPartnershipSchema = createInsertSchema(partnerships).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertServiceSchema = createInsertSchema(services).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
 export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertServiceAttachmentSchema = createInsertSchema(serviceAttachments).omit({ id: true, uploadedAt: true });
+export const insertServiceAssignmentSchema = createInsertSchema(serviceAssignments).omit({ id: true, assignedAt: true, updatedAt: true });
 export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, createdAt: true });
 
 // Types
@@ -184,5 +218,9 @@ export type Service = typeof services.$inferSelect;
 export type InsertService = z.infer<typeof insertServiceSchema>;
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
+export type ServiceAttachment = typeof serviceAttachments.$inferSelect;
+export type InsertServiceAttachment = z.infer<typeof insertServiceAttachmentSchema>;
+export type ServiceAssignment = typeof serviceAssignments.$inferSelect;
+export type InsertServiceAssignment = z.infer<typeof insertServiceAssignmentSchema>;
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;

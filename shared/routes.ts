@@ -5,11 +5,17 @@ import {
   insertServiceSchema, 
   insertPartnershipSchema,
   insertCalendarEventSchema,
+  insertServiceAttachmentSchema,
+  insertServiceAssignmentSchema,
+  insertReviewSchema,
   profiles, 
   companies, 
   services, 
   partnerships,
   calendarEvents,
+  serviceAttachments,
+  serviceAssignments,
+  reviews,
   userRoleEnum,
   serviceStatusEnum,
   partnershipStatusEnum,
@@ -40,6 +46,16 @@ export const api = {
     get: { method: 'GET' as const, path: '/api/services/:id', responses: { 200: z.custom<typeof services.$inferSelect>(), 404: errorSchemas.notFound } },
     create: { method: 'POST' as const, path: '/api/services', input: insertServiceSchema, responses: { 201: z.custom<typeof services.$inferSelect>(), 400: errorSchemas.validation } },
     update: { method: 'PUT' as const, path: '/api/services/:id', input: insertServiceSchema.partial(), responses: { 200: z.custom<typeof services.$inferSelect>(), 400: errorSchemas.validation, 404: errorSchemas.notFound } },
+    
+    // Sub-resources
+    getAssignments: { method: 'GET' as const, path: '/api/services/:id/assignments', responses: { 200: z.array(z.custom<typeof serviceAssignments.$inferSelect>()) } },
+    assign: { method: 'POST' as const, path: '/api/services/:id/assignments', input: insertServiceAssignmentSchema, responses: { 201: z.custom<typeof serviceAssignments.$inferSelect>(), 400: errorSchemas.validation } },
+    
+    getAttachments: { method: 'GET' as const, path: '/api/services/:id/attachments', responses: { 200: z.array(z.custom<typeof serviceAttachments.$inferSelect>()) } },
+    addAttachment: { method: 'POST' as const, path: '/api/services/:id/attachments', input: insertServiceAttachmentSchema, responses: { 201: z.custom<typeof serviceAttachments.$inferSelect>(), 400: errorSchemas.validation } },
+
+    getReviews: { method: 'GET' as const, path: '/api/services/:id/reviews', responses: { 200: z.array(z.custom<typeof reviews.$inferSelect>()) } },
+    addReview: { method: 'POST' as const, path: '/api/services/:id/reviews', input: insertReviewSchema, responses: { 201: z.custom<typeof reviews.$inferSelect>(), 400: errorSchemas.validation } },
   },
   calendar: {
     list: { method: 'GET' as const, path: '/api/calendar', responses: { 200: z.array(z.custom<typeof calendarEvents.$inferSelect>()) } },
