@@ -93,6 +93,23 @@ export function setupAuth(app: Express) {
         password: hashedPassword,
       });
 
+      // Create initial profile with role if provided
+      if (req.body.role) {
+        await storage.createProfile({
+          id: user.id,
+          role: req.body.role,
+          // Default fields
+          fullName: req.body.username, // Fallback name
+        });
+      } else {
+        // Default to montador if no role specified
+        await storage.createProfile({
+          id: user.id,
+          role: "montador",
+          fullName: req.body.username,
+        });
+      }
+
       req.login(user, (err) => {
         if (err) return next(err);
         res.status(201).json(user);

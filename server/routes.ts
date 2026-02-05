@@ -5,6 +5,25 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { serviceStatusEnum } from "@shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import express from "express";
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: uploadDir,
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    },
+  }),
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -12,6 +31,18 @@ export async function registerRoutes(
 ): Promise<Server> {
   // Setup Auth
   setupAuth(app);
+
+  // Serve uploaded files
+  app.use("/uploads", express.static(uploadDir));
+
+  // Upload endpoint
+  app.post("/api/upload", upload.array("files"), (req, res) => {
+    if (!req.files || (req.files as Express.Multer.File[]).length === 0) {
+      return res.status(400).json({ message: "No files uploaded" });
+    }
+    const files = (req.files as Express.Multer.File[]).map((file) => `/uploads/${file.filename}`);
+    res.json({ urls: files });
+  });
 
   // Profiles
   app.get(api.profiles.me.path, async (req, res) => {

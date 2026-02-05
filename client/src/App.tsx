@@ -10,6 +10,10 @@ import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import Profile from "@/pages/profile";
 import ServicesList from "@/pages/services-list";
+import CreateService from "@/pages/create-service";
+import ServiceDetails from "@/pages/service-details";
+import CalendarPage from "@/pages/calendar";
+import CompanySetup from "@/pages/company-setup";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -54,6 +58,22 @@ function Router() {
 
       <Route path="/services">
         <ProtectedRoute component={ServicesList} />
+      </Route>
+
+      <Route path="/services/new">
+        <ProtectedRoute component={CreateService} />
+      </Route>
+
+      <Route path="/services/:id">
+        <ProtectedRoute component={ServiceDetails} />
+      </Route>
+
+      <Route path="/calendar">
+        <ProtectedRoute component={CalendarPage} />
+      </Route>
+
+      <Route path="/company/setup">
+        <ProtectedRoute component={CompanySetup} />
       </Route>
 
       {/* Fallback to 404 */}

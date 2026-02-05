@@ -6,6 +6,7 @@ import {
   type Service, type InsertService,
   type Partnership,
   type CalendarEvent, type InsertCalendarEvent,
+  type Review, type InsertReview,
   serviceStatusEnum
 } from "@shared/schema";
 import { db } from "./db";
@@ -34,6 +35,11 @@ export interface IStorage {
   getService(id: number): Promise<Service | undefined>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: number, service: Partial<InsertService>): Promise<Service>;
+
+  // Reviews
+  createReview(review: InsertReview): Promise<Review>;
+  getReviewsByService(serviceId: number): Promise<Review[]>;
+  getReviewsByTarget(targetId: string): Promise<Review[]>;
 
   // Partnerships
   getPartnerships(): Promise<Partnership[]>;
@@ -151,6 +157,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(services.id, id))
       .returning();
     return service;
+  }
+
+  // Reviews
+  async createReview(insertReview: InsertReview): Promise<Review> {
+    const [review] = await db.insert(reviews).values(insertReview).returning();
+    return review;
+  }
+
+  async getReviewsByService(serviceId: number): Promise<Review[]> {
+    return await db.select().from(reviews).where(eq(reviews.serviceId, serviceId));
+  }
+
+  async getReviewsByTarget(targetId: string): Promise<Review[]> {
+    return await db.select().from(reviews).where(eq(reviews.targetId, targetId));
   }
 
   // Partnerships

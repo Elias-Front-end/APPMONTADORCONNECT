@@ -16,11 +16,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Briefcase } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Schema for login/register
 const authSchema = z.object({
   username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  role: z.enum(["montador", "marcenaria", "lojista"]).default("montador"),
 });
 
 type AuthFormValues = z.infer<typeof authSchema>;
@@ -40,6 +48,7 @@ export default function AuthPage() {
     defaultValues: {
       username: "",
       password: "",
+      role: "montador",
     },
   });
 
@@ -101,6 +110,22 @@ export default function AuthPage() {
                       {form.formState.errors.password && (
                         <p className="text-sm text-red-500">{form.formState.errors.password.message}</p>
                       )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="role">Tipo de Conta</Label>
+                      <Select 
+                        onValueChange={(value) => form.setValue("role", value as any)} 
+                        defaultValue="montador"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tipo de conta" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="montador">Montador</SelectItem>
+                          <SelectItem value="marcenaria">Marcenaria</SelectItem>
+                          <SelectItem value="lojista">Lojista</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <Button 
                         type="submit" 
