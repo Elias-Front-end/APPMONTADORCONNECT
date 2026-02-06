@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Building2, Wrench, CheckCircle2 } from "lucide-react";
+import { Loader2, Building2, Wrench } from "lucide-react";
 import { insertProfileSchema, insertCompanySchema, industryTypeEnum, companySizeEnum } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@shared/routes";
+import { z } from "zod";
+import { isValidCPF, isValidCNPJ } from "@shared/validation";
+
+// --- Schemas com validação reforçada ---
+
+const montadorSchema = insertProfileSchema.extend({
+  fullName: z.string().min(3, "Nome completo é obrigatório"),
+  phone: z.string().min(10, "Telefone inválido"),
+  cpf: z.string().refine(isValidCPF, "CPF inválido"),
+  bio: z.string().optional(),
+  region: z.string().min(3, "Região é obrigatória"),
+  experienceYears: z.number().min(0, "Experiência não pode ser negativa"),
+});
+
+const companyFormSchema = insertCompanySchema.extend({
+  tradingName: z.string().min(2, "Nome fantasia obrigatório"),
+  corporateName: z.string().min(2, "Razão social obrigatória"),
+  cnpj: z.string().refine(isValidCNPJ, "CNPJ inválido"),
+  phone: z.string().min(10, "Telefone inválido"),
+  emailContact: z.string().email("Email inválido"),
+  addressFull: z.string().min(5, "Endereço obrigatório"),
+  city: z.string().min(2, "Cidade obrigatória"),
+  state: z.string().min(2, "Estado obrigatório"),
+  responsavel: z.string().min(3, "Nome do responsável é obrigatório"),
+});
 
 export default function OnboardingPage() {
   const [, setLocation] = useLocation();
@@ -72,6 +97,9 @@ export default function OnboardingPage() {
         setLocation("/");
       }
     },
+    onError: (err) => {
+      toast({ title: "Erro ao salvar perfil", description: err.message, variant: "destructive" });
+    }
   });
 
   const companyMutation = useMutation({
@@ -90,6 +118,9 @@ export default function OnboardingPage() {
       toast({ title: "Empresa cadastrada!", description: "Seu perfil corporativo foi criado." });
       setLocation("/");
     },
+    onError: (err) => {
+        toast({ title: "Erro ao criar empresa", description: err.message, variant: "destructive" });
+    }
   });
 
   const handleRoleSelect = (selected: "montador" | "empresa") => {
@@ -161,12 +192,15 @@ export default function OnboardingPage() {
         </CardHeader>
         <CardContent>
           {role === "montador" ? (
-            <MontadorForm onSubmit={(data) => profileMutation.mutate(data)} isPending={profileMutation.isPending} />
+            <MontadorForm 
+              onSubmit={(data) => profileMutation.mutate({ ...data, role: "montador" })} 
+              isPending={profileMutation.isPending} 
+            />
           ) : (
             <CompanyForm 
               onSubmit={async (data) => {
                 try {
-                  // 1. Update/Create Profile
+                  // 1. Update/Create Profile with correct role
                   await profileMutation.mutateAsync({ 
                     fullName: data.responsavel,
                     role: data.industryType === 'marcenaria' ? 'marcenaria' : 'lojista',
@@ -177,7 +211,7 @@ export default function OnboardingPage() {
                   // 2. Create Company
                   await companyMutation.mutateAsync(data);
                 } catch (e) {
-                  console.error(e);
+                  // Error handled in mutations
                 }
               }} 
               isPending={companyMutation.isPending || profileMutation.isPending} 
@@ -192,9 +226,9 @@ export default function OnboardingPage() {
 
 function MontadorForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, isPending: boolean }) {
   const form = useForm({
-    resolver: zodResolver(insertProfileSchema),
+    resolver: zodResolver(montadorSchema),
     defaultValues: {
-      role: "montador",
+      role: "montador" as const,
       fullName: "",
       phone: "",
       cpf: "",
@@ -214,15 +248,18 @@ function MontadorForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, 
         </div>
         <div className="space-y-2">
           <Label htmlFor="cpf">CPF</Label>
-          <Input id="cpf" {...form.register("cpf")} />
+          <Input id="cpf" {...form.register("cpf")} placeholder="000.000.000-00" />
+          {form.formState.errors.cpf && <p className="text-sm text-red-500">{form.formState.errors.cpf.message}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Telefone / WhatsApp</Label>
-          <Input id="phone" {...form.register("phone")} />
+          <Input id="phone" {...form.register("phone")} placeholder="(00) 00000-0000" />
+          {form.formState.errors.phone && <p className="text-sm text-red-500">{form.formState.errors.phone.message}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="region">Região de Atuação</Label>
           <Input id="region" {...form.register("region")} placeholder="Ex: São Paulo, SP" />
+          {form.formState.errors.region && <p className="text-sm text-red-500">{form.formState.errors.region.message}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="experienceYears">Anos de Experiência</Label>
@@ -231,6 +268,7 @@ function MontadorForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, 
             type="number" 
             {...form.register("experienceYears", { valueAsNumber: true })} 
           />
+          {form.formState.errors.experienceYears && <p className="text-sm text-red-500">{form.formState.errors.experienceYears.message}</p>}
         </div>
       </div>
       <div className="space-y-2">
@@ -247,7 +285,7 @@ function MontadorForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, 
 
 function CompanyForm({ onSubmit, isPending, initialData }: { onSubmit: (data: any) => void, isPending: boolean, initialData?: any }) {
   const form = useForm({
-    resolver: zodResolver(insertCompanySchema.extend({ responsavel: z.string().min(3) })),
+    resolver: zodResolver(companyFormSchema),
     defaultValues: {
       tradingName: initialData?.tradingName || "",
       corporateName: initialData?.corporateName || "",
@@ -259,7 +297,7 @@ function CompanyForm({ onSubmit, isPending, initialData }: { onSubmit: (data: an
       state: initialData?.state || "",
       industryType: initialData?.industryType || "lojista",
       companySize: initialData?.companySize || "pequena",
-      responsavel: initialData?.responsavel || "", // Field for the profile creation
+      responsavel: initialData?.responsavel || "", 
     }
   });
 
@@ -276,18 +314,22 @@ function CompanyForm({ onSubmit, isPending, initialData }: { onSubmit: (data: an
           <div className="space-y-2">
             <Label htmlFor="corporateName">Razão Social</Label>
             <Input id="corporateName" {...form.register("corporateName")} />
+            {form.formState.errors.corporateName && <p className="text-sm text-red-500">{form.formState.errors.corporateName.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="cnpj">CNPJ</Label>
-            <Input id="cnpj" {...form.register("cnpj")} />
+            <Input id="cnpj" {...form.register("cnpj")} placeholder="00.000.000/0000-00" />
+            {form.formState.errors.cnpj && <p className="text-sm text-red-500">{form.formState.errors.cnpj.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Telefone Comercial</Label>
-            <Input id="phone" {...form.register("phone")} />
+            <Input id="phone" {...form.register("phone")} placeholder="(00) 0000-0000" />
+            {form.formState.errors.phone && <p className="text-sm text-red-500">{form.formState.errors.phone.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="emailContact">Email Corporativo</Label>
             <Input id="emailContact" type="email" {...form.register("emailContact")} />
+            {form.formState.errors.emailContact && <p className="text-sm text-red-500">{form.formState.errors.emailContact.message}</p>}
           </div>
         </div>
 
@@ -323,16 +365,19 @@ function CompanyForm({ onSubmit, isPending, initialData }: { onSubmit: (data: an
         <div className="space-y-2">
           <Label htmlFor="addressFull">Endereço Completo</Label>
           <Input id="addressFull" {...form.register("addressFull")} />
+          {form.formState.errors.addressFull && <p className="text-sm text-red-500">{form.formState.errors.addressFull.message}</p>}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="city">Cidade</Label>
             <Input id="city" {...form.register("city")} />
+            {form.formState.errors.city && <p className="text-sm text-red-500">{form.formState.errors.city.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="state">Estado</Label>
             <Input id="state" {...form.register("state")} />
+            {form.formState.errors.state && <p className="text-sm text-red-500">{form.formState.errors.state.message}</p>}
           </div>
         </div>
 
@@ -340,6 +385,7 @@ function CompanyForm({ onSubmit, isPending, initialData }: { onSubmit: (data: an
         <div className="space-y-2">
           <Label htmlFor="responsavel">Nome do Responsável</Label>
           <Input id="responsavel" {...form.register("responsavel")} />
+          {form.formState.errors.responsavel && <p className="text-sm text-red-500">{form.formState.errors.responsavel.message}</p>}
         </div>
       </div>
 
