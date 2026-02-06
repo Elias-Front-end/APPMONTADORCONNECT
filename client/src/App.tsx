@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { LayoutShell } from "@/components/layout-shell";
+import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import AuthPage from "@/pages/auth-page";
@@ -18,16 +19,20 @@ import { api } from "@shared/routes";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
-
+  
   // Fetch profile to check if onboarding is needed
   const { data: profile, isLoading: isProfileLoading } = useQuery({
     queryKey: ["/api/profiles/me"],
     queryFn: async () => {
-      const res = await fetch(api.profiles.me.path);
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error("Failed to fetch profile");
-      return res.json();
+      try {
+        const res = await fetch(api.profiles.me.path);
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error("Failed to fetch profile");
+        return res.json();
+      } catch (error) {
+        console.error("[ProtectedRoute] Profile fetch error:", error);
+        return null;
+      }
     },
     enabled: !!user,
     retry: false,
@@ -60,13 +65,18 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
 function Router() {
   const { user, isLoading } = useAuth();
-  const { data: profile, isLoading: isProfileLoading } = useQuery({
+  const { data: profile, isLoading: isProfileLoading, error: profileError } = useQuery({
     queryKey: ["/api/profiles/me"],
     queryFn: async () => {
-      const res = await fetch(api.profiles.me.path);
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error("Failed to fetch profile");
-      return res.json();
+      try {
+        const res = await fetch(api.profiles.me.path);
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error(`Failed to fetch profile: ${res.status}`);
+        return res.json();
+      } catch (error) {
+        console.error("[Router] Profile fetch error:", error);
+        throw error;
+      }
     },
     enabled: !!user,
     retry: false,
@@ -75,23 +85,26 @@ function Router() {
   if (isLoading || (user && isProfileLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <p className="text-sm text-slate-500">Carregando...</p>
+        </div>
       </div>
     );
   }
 
-  const isProfileComplete = profile && profile.phone && profile.phone.length > 0;
+  const isProfileComplete = !!(profile && profile.phone && profile.phone.length > 0);
 
   // Debug routing state
-  React.useEffect(() => {
-    console.log("[Router] State update:", {
-      isLoading,
-      isProfileLoading,
-      hasUser: !!user,
-      isProfileComplete,
-      currentPath: window.location.pathname
-    });
-  }, [isLoading, isProfileLoading, user, isProfileComplete]);
+  console.log("[Router] State update:", {
+    isLoading,
+    isProfileLoading,
+    profileError,
+    hasUser: !!user,
+    userId: user?.id,
+    isProfileComplete,
+    currentPath: window.location.pathname
+  });
 
   return (
     <Switch>
@@ -134,12 +147,14 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
