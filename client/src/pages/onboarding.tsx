@@ -98,7 +98,13 @@ export default function OnboardingPage() {
       }
     },
     onError: (err) => {
-      toast({ title: "Erro ao salvar perfil", description: err.message, variant: "destructive" });
+      let message = err.message;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.message) message = parsed.message;
+      } catch (e) {}
+      
+      toast({ title: "Erro ao salvar perfil", description: message, variant: "destructive" });
     }
   });
 
@@ -119,7 +125,12 @@ export default function OnboardingPage() {
       setLocation("/");
     },
     onError: (err) => {
-        toast({ title: "Erro ao criar empresa", description: err.message, variant: "destructive" });
+        let message = err.message;
+        try {
+            const parsed = JSON.parse(err.message);
+            if (parsed.message) message = parsed.message;
+        } catch (e) {}
+        toast({ title: "Erro ao criar empresa", description: message, variant: "destructive" });
     }
   });
 

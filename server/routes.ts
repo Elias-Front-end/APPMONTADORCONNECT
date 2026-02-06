@@ -67,13 +67,25 @@ export async function registerRoutes(
     const user = req.user as any;
     try {
       const input = api.profiles.update.input.parse(req.body);
+      // Remove empty strings from unique fields if they are optional/nullable in logic but unique in DB
+      // However, schema says cpf is unique. If user sends empty string "" and another user has "", it clashes?
+      // Postgres unique constraint allows multiple NULLs but treats empty string "" as a value.
+      // So we must convert empty strings to null for unique fields.
+      if (input.cpf === "") input.cpf = null;
+
       const profile = await storage.updateProfile(user.id, input);
       res.json(profile);
     } catch (err) {
+      // Handle unique constraint violation specifically
+      if (err instanceof Error && 'code' in err && err.code === '23505') {
+         return res.status(409).json({ message: "Este CPF já está cadastrado em outra conta." });
+      }
+
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
-      res.status(500).json({ message: "Internal Server Error" });
+      console.error("Error updating profile:", err);
+      res.status(500).json({ message: "Erro interno ao atualizar perfil" });
     }
   });
 
