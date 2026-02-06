@@ -21,6 +21,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<"role" | "details">("role");
   const [role, setRole] = useState<"montador" | "empresa" | null>(null);
 
+  const [initialized, setInitialized] = useState(false);
+
   // Fetch existing profile to see if we can skip role selection
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["/api/profiles/me"],
@@ -34,13 +36,20 @@ export default function OnboardingPage() {
   });
 
   useEffect(() => {
-    if (profile) {
+    if (profile && !initialized) {
       // If profile exists, set role and skip to details
       const mappedRole = (profile.role === 'montador') ? 'montador' : 'empresa';
       setRole(mappedRole);
       setStep("details");
+      setInitialized(true);
     }
-  }, [profile]);
+  }, [profile, initialized]);
+
+  const handleBackToRole = () => {
+    setRole(null);
+    setStep("role");
+    // We don't reset initialized, so it won't auto-jump back
+  };
 
   const profileMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -138,9 +147,14 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 py-10">
       <Card className="max-w-2xl w-full">
         <CardHeader>
-          <CardTitle>
-            {role === "montador" ? "Complete seu Perfil de Montador" : "Cadastro da Empresa"}
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              {role === "montador" ? "Complete seu Perfil de Montador" : "Cadastro da Empresa"}
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={handleBackToRole}>
+              Trocar tipo de perfil
+            </Button>
+          </div>
           <CardDescription>
             Preencha os dados abaixo para começar.
           </CardDescription>

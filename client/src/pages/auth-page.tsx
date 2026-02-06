@@ -149,8 +149,8 @@ export default function AuthPage() {
                       )}
                     </div>
 
-                    <div className="space-y-3 pt-2">
-                      <Label>Eu sou:</Label>
+                    <div className="space-y-4 pt-4 border-t">
+                      <Label className="text-base font-medium">Eu quero me cadastrar como:</Label>
                       <RadioGroup 
                         defaultValue="montador" 
                         onValueChange={(val) => form.setValue("role", val as any)}
