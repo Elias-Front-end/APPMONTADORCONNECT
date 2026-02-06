@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Building2, Wrench } from "lucide-react";
+import { Loader2, Building2, Wrench, LogOut } from "lucide-react";
 import { insertProfileSchema, insertCompanySchema, industryTypeEnum, companySizeEnum } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { isValidCPF, isValidCNPJ } from "@shared/validation";
+import { useAuth } from "@/hooks/use-auth";
 
 // --- Schemas com validação reforçada ---
 
@@ -43,6 +44,7 @@ export default function OnboardingPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { logoutMutation } = useAuth();
   const [step, setStep] = useState<"role" | "details">("role");
   const [role, setRole] = useState<"montador" | "empresa" | null>(null);
 
@@ -161,7 +163,19 @@ export default function OnboardingPage() {
 
   if (step === "role") {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        
+        <div className="w-full max-w-4xl flex justify-end mb-4">
+          <Button 
+            variant="ghost" 
+            className="text-slate-500 hover:text-red-500 hover:bg-red-50"
+            onClick={() => logoutMutation.mutate()}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sair da conta
+          </Button>
+        </div>
+
         <div className="max-w-4xl w-full grid md:grid-cols-2 gap-6">
           <Card 
             className="cursor-pointer hover:border-blue-500 transition-all hover:shadow-lg"
@@ -198,7 +212,19 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 py-10">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 py-10">
+      
+      <div className="w-full max-w-2xl flex justify-end mb-4">
+        <Button 
+          variant="ghost" 
+          className="text-slate-500 hover:text-red-500 hover:bg-red-50"
+          onClick={() => logoutMutation.mutate()}
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Sair da conta
+        </Button>
+      </div>
+
       <Card className="max-w-2xl w-full">
         <CardHeader>
           <div className="flex items-center justify-between">
