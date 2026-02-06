@@ -87,15 +87,22 @@ export default function OnboardingPage() {
       const endpoint = profile ? api.profiles.update.path : api.profiles.create.path;
       const method = profile ? "PUT" : "POST";
       
+      console.log(`[Onboarding] Submitting profile data. Method: ${method}, Endpoint: ${endpoint}`, data);
+
       const res = await fetch(endpoint, {
         method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`[Onboarding] Submission failed: ${res.status} ${res.statusText}`, errorText);
+        throw new Error(errorText);
+      }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log(`[Onboarding] Submission successful`, data);
       queryClient.invalidateQueries({ queryKey: ["/api/profiles/me"] });
       if (role === "montador") {
         toast({ title: "Perfil atualizado!", description: "Bem-vindo ao MontadorConecta." });

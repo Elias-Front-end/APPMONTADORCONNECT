@@ -120,7 +120,7 @@ function Router() {
         ) : (
           <Switch>
             <Route path="/">
-               <Landing />
+               {user ? <Redirect to="/onboarding" /> : <Landing />}
             </Route>
              {/* Fallback for other routes if not logged in/complete -> Redirect or 404 */}
             <Route component={() => <Redirect to={user ? "/onboarding" : "/"} />} />
