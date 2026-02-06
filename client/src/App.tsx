@@ -1,4 +1,5 @@
 import { Switch, Route, Redirect, useLocation } from "wouter";
+import React from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -41,6 +42,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!user) {
+    console.log("[ProtectedRoute] No user found, redirecting to /");
     return <Redirect to="/" />;
   }
 
@@ -49,6 +51,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   const isProfileComplete = profile && profile.phone && profile.phone.length > 0;
   
   if (user && !isProfileComplete) {
+     console.log("[ProtectedRoute] Profile incomplete, redirecting to /onboarding");
      return <Redirect to="/onboarding" />;
   }
 
@@ -78,6 +81,17 @@ function Router() {
   }
 
   const isProfileComplete = profile && profile.phone && profile.phone.length > 0;
+
+  // Debug routing state
+  React.useEffect(() => {
+    console.log("[Router] State update:", {
+      isLoading,
+      isProfileLoading,
+      hasUser: !!user,
+      isProfileComplete,
+      currentPath: window.location.pathname
+    });
+  }, [isLoading, isProfileLoading, user, isProfileComplete]);
 
   return (
     <Switch>

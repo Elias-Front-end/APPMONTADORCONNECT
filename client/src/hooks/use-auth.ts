@@ -62,22 +62,43 @@ export function useAuth() {
 
   const loginMutation = useMutation({
     mutationFn: login,
+    onMutate: (variables) => {
+      console.log(`[Auth] Attempting login for: ${variables.username}`);
+    },
     onSuccess: (user) => {
+      console.log(`[Auth] Login successful for: ${user.username}`);
       queryClient.setQueryData(["/api/auth/user"], user);
+    },
+    onError: (error) => {
+      console.error(`[Auth] Login failed:`, error);
     },
   });
 
   const registerMutation = useMutation({
     mutationFn: register,
+    onMutate: (variables) => {
+      console.log(`[Auth] Attempting registration for: ${variables.username}`);
+    },
     onSuccess: (user) => {
+      console.log(`[Auth] Registration successful for: ${user.username}`);
       queryClient.setQueryData(["/api/auth/user"], user);
+    },
+    onError: (error) => {
+      console.error(`[Auth] Registration failed:`, error);
     },
   });
 
   const logoutMutation = useMutation({
     mutationFn: logout,
+    onMutate: () => {
+      console.log(`[Auth] Attempting logout`);
+    },
     onSuccess: () => {
+      console.log(`[Auth] Logout successful`);
       queryClient.setQueryData(["/api/auth/user"], null);
+    },
+    onError: (error) => {
+      console.error(`[Auth] Logout failed:`, error);
     },
   });
 

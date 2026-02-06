@@ -10,6 +10,10 @@ import fs from "fs";
 import path from "path";
 import express from "express";
 
+import { createLogger } from "./logger";
+
+const logger = createLogger("Routes");
+
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -42,19 +46,31 @@ export async function registerRoutes(
   app.get(api.profiles.me.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const user = req.user as any;
-    const profile = await storage.getProfile(user.id); // user.id comes from auth table, which is string UUID
-    if (!profile) return res.status(404).json({ message: "Profile not found" });
-    res.json(profile);
+    logger.debug(`Fetching profile for user: ${user.username} (ID: ${user.id})`);
+    try {
+      const profile = await storage.getProfile(user.id); // user.id comes from auth table, which is string UUID
+      if (!profile) {
+        logger.warn(`Profile not found for user: ${user.id}`);
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      res.json(profile);
+    } catch (err) {
+      logger.error(`Error fetching profile for user ${user.id}:`, err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
   });
 
   app.post(api.profiles.create.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const user = req.user as any;
+    logger.info(`Creating profile for user: ${user.username} (ID: ${user.id})`);
+    
     try {
       const input = api.profiles.create.input.parse({ ...req.body, id: user.id }); // force ID match
       
       // Security check for role
       if (input.role && !["montador", "marcenaria", "lojista"].includes(input.role)) {
+         logger.warn(`Invalid role attempt: ${input.role} for user ${user.id}`);
          return res.status(403).json({ message: "Tipo de perfil inválido ou não permitido." });
       }
 
@@ -62,16 +78,20 @@ export async function registerRoutes(
       if (input.cpf === "") input.cpf = null;
 
       const profile = await storage.createProfile({ ...input, id: user.id });
+      logger.info(`Profile created successfully for user ${user.id}`);
       res.status(201).json(profile);
     } catch (err) {
       // Handle unique constraint violation specifically
-      if (err instanceof Error && 'code' in err && err.code === '23505') {
+      if (err instanceof Error && 'code' in err && (err as any).code === '23505') {
+          logger.warn(`CPF duplicate error for user ${user.id}`);
           return res.status(409).json({ message: "Este CPF já está cadastrado em outra conta." });
       }
 
       if (err instanceof z.ZodError) {
+        logger.warn(`Validation error creating profile for user ${user.id}:`, err.errors);
         return res.status(400).json({ message: err.errors[0].message });
       }
+      logger.error(`Error creating profile for user ${user.id}:`, err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   });
@@ -79,14 +99,14 @@ export async function registerRoutes(
   app.put(api.profiles.update.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const user = req.user as any;
+    logger.info(`Updating profile for user: ${user.username} (ID: ${user.id})`);
+    
     try {
       const input = api.profiles.update.input.parse(req.body);
       
       // Security check for role: Prevent escalation to admin
       if (input.role && !["montador", "marcenaria", "lojista"].includes(input.role)) {
-         // If trying to change to something restricted, ignore or error.
-         // Let's check if the user IS already an admin? 
-         // For now, simply block setting restricted roles via API.
+         logger.warn(`Invalid role update attempt: ${input.role} for user ${user.id}`);
          return res.status(403).json({ message: "Tipo de perfil inválido ou não permitido." });
       }
 
@@ -97,7 +117,9 @@ export async function registerRoutes(
       if (input.cpf === "") input.cpf = null;
 
       const profile = await storage.updateProfile(user.id, input);
+      logger.info(`Profile updated successfully for user ${user.id}`);
       res.json(profile);
+
     } catch (err) {
       // Handle unique constraint violation specifically
       if (err instanceof Error && 'code' in err && err.code === '23505') {

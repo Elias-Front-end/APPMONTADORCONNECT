@@ -46,6 +46,7 @@ export default function AuthPage() {
   });
 
   const onSubmit = (data: AuthFormValues, isLogin: boolean) => {
+    console.log(`[AuthPage] Submitting form. Mode: ${isLogin ? 'Login' : 'Register'}`, data);
     if (isLogin) {
       loginMutation.mutate(data);
     } else {

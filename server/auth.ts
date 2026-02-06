@@ -8,6 +8,9 @@ import { storage } from "./storage";
 import { pool } from "./db";
 import { User as DbUser } from "@shared/schema";
 import connectPg from "connect-pg-simple";
+import { createLogger } from "./logger";
+
+const logger = createLogger("Auth");
 
 // Extend Express Request type to include Passport methods
 declare global {
@@ -32,6 +35,7 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  logger.info("Setting up authentication...");
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
@@ -60,40 +64,57 @@ export function setupAuth(app: Express) {
 
   passport.use(
     new LocalStrategy(async (username: string, password: string, done: (err: any, user?: any) => void) => {
+      logger.debug(`Attempting login for user: ${username}`);
       try {
         const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
+        if (!user) {
+          logger.warn(`Login failed: User not found for username: ${username}`);
           return done(null, false);
-        } else {
-          return done(null, user);
         }
+        if (!(await comparePasswords(password, user.password))) {
+          logger.warn(`Login failed: Invalid password for user: ${username}`);
+          return done(null, false);
+        }
+        logger.info(`Login successful for user: ${username} (ID: ${user.id})`);
+        return done(null, user);
       } catch (err) {
+        logger.error(`Login error for user ${username}:`, err);
         return done(err);
       }
     }),
   );
 
   passport.serializeUser((user: Express.User, done: (err: any, id?: unknown) => void) => {
+    logger.debug(`Serializing user: ${user.id}`);
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: string, done: (err: any, user?: Express.User | null) => void) => {
+    logger.debug(`Deserializing user: ${id}`);
     try {
       const user = await storage.getUser(id);
+      if (!user) {
+        logger.warn(`Deserialize failed: User not found for ID: ${id}`);
+        return done(null, null); // Explicitly return null if user not found
+      }
       done(null, user);
     } catch (err) {
+      logger.error(`Deserialize error for ID ${id}:`, err);
       done(err);
     }
   });
 
   app.post("/api/register", async (req, res, next) => {
+    logger.info(`Registration attempt for username: ${req.body.username}`);
     try {
       if (!req.body.username || !req.body.password) {
+        logger.warn("Registration failed: Missing username or password");
         return res.status(400).send("Username and password are required");
       }
 
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
+        logger.warn(`Registration failed: Username already exists: ${req.body.username}`);
         return res.status(400).send("Username already exists");
       }
 
@@ -102,10 +123,13 @@ export function setupAuth(app: Express) {
         ...req.body,
         password: hashedPassword,
       });
+      
+      logger.info(`User created successfully: ${user.username} (ID: ${user.id})`);
 
       // Create initial profile with selected role
       if (req.body.role) {
         try {
+          logger.debug(`Creating initial profile for user ${user.id} with role ${req.body.role}`);
           // Map "marcenaria" to "marcenaria" or "lojista" role, or generalize as "partner" if needed
           // For now, let's use the enum values directly. 
           // If user selected "empresa" (marcenaria in value), we store that.
@@ -127,35 +151,69 @@ export function setupAuth(app: Express) {
             reputationScore: 0,
             level: 'iniciante'
           });
+          logger.info(`Initial profile created for user ${user.id}`);
         } catch (profileErr) {
-          console.error("Failed to create initial profile:", profileErr);
+          logger.error("Failed to create initial profile:", profileErr);
           // Non-fatal, user can create profile later
         }
       }
 
       req.login(user, (err: any) => {
-        if (err) return next(err);
+        if (err) {
+          logger.error("Login after registration failed:", err);
+          return next(err);
+        }
+        logger.info(`User logged in after registration: ${user.username}`);
         res.status(201).json(user);
       });
     } catch (err) {
-      console.error("Registration error:", err);
+      logger.error("Registration error:", err);
       next(err);
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+  app.post("/api/login", (req, res, next) => {
+    logger.debug("Login request received");
+    passport.authenticate("local", (err: any, user: any, info: any) => {
+      if (err) {
+        logger.error("Passport authenticate error:", err);
+        return next(err);
+      }
+      if (!user) {
+        logger.warn("Authentication failed (no user returned)");
+        return res.status(401).send("Invalid credentials");
+      }
+      req.login(user, (err) => {
+        if (err) {
+          logger.error("req.login error:", err);
+          return next(err);
+        }
+        logger.info(`Session established for user: ${user.username}`);
+        return res.status(200).json(user);
+      });
+    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
+    const userId = (req.user as any)?.id;
+    logger.info(`Logout request for user ID: ${userId}`);
     req.logout((err: any) => {
-      if (err) return next(err);
+      if (err) {
+        logger.error("Logout error:", err);
+        return next(err);
+      }
+      logger.info("Logout successful");
       res.sendStatus(200);
     });
   });
 
   app.get("/api/auth/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.isAuthenticated()) {
+      // Don't log this as error/warn, it's common for initial load
+      // logger.debug("User check: Not authenticated");
+      return res.sendStatus(401);
+    }
+    logger.debug(`User check: Authenticated as ${(req.user as any).username}`);
     res.json(req.user);
   });
 }
