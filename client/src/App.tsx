@@ -44,10 +44,10 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   // If user has no profile, redirect to onboarding
-  // BUT: Prevent redirect loop if we are already on onboarding? 
-  // ProtectedRoute is used for /profile, /services. 
-  // If we access /profile but have no profile, we should go to onboarding.
-  if (user && !profile) {
+  // If profile exists but is incomplete (e.g. no phone), redirect to onboarding
+  const isProfileComplete = profile && profile.phone && profile.phone.length > 0;
+  
+  if (user && !isProfileComplete) {
      return <Redirect to="/onboarding" />;
   }
 
@@ -76,14 +76,16 @@ function Router() {
     );
   }
 
+  const isProfileComplete = profile && profile.phone && profile.phone.length > 0;
+
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
       <Route path="/onboarding">
-        {user ? (profile ? <Redirect to="/" /> : <OnboardingPage />) : <Redirect to="/auth" />}
+        {user ? (isProfileComplete ? <Redirect to="/" /> : <OnboardingPage />) : <Redirect to="/auth" />}
       </Route>
       <Route path="/">
-        {user ? (profile ? <Dashboard /> : <Redirect to="/onboarding" />) : <Landing />}
+        {user ? (isProfileComplete ? <Dashboard /> : <Redirect to="/onboarding" />) : <Landing />}
       </Route>
       
       <Route path="/profile">

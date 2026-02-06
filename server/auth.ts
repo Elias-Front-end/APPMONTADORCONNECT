@@ -93,6 +93,33 @@ export function setupAuth(app: Express) {
         password: hashedPassword,
       });
 
+      // Create initial profile with selected role
+      if (req.body.role) {
+        try {
+          // Map "marcenaria" to "marcenaria" or "lojista" role, or generalize as "partner" if needed
+          // For now, let's use the enum values directly. 
+          // If user selected "empresa" (marcenaria in value), we store that.
+          const role = req.body.role === 'marcenaria' ? 'marcenaria' : 'montador';
+          
+          await storage.createProfile({
+            id: user.id,
+            role: role,
+            // Default empty values
+            fullName: "",
+            phone: "",
+            bio: "",
+            skills: [],
+            experienceYears: 0,
+            region: "",
+            reputationScore: 0,
+            level: 'iniciante'
+          });
+        } catch (profileErr) {
+          console.error("Failed to create initial profile:", profileErr);
+          // Non-fatal, user can create profile later
+        }
+      }
+
       req.login(user, (err) => {
         if (err) return next(err);
         res.status(201).json(user);

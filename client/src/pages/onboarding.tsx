@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
@@ -21,10 +21,35 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<"role" | "details">("role");
   const [role, setRole] = useState<"montador" | "empresa" | null>(null);
 
+  // Fetch existing profile to see if we can skip role selection
+  const { data: profile, isLoading: isLoadingProfile } = useQuery({
+    queryKey: ["/api/profiles/me"],
+    queryFn: async () => {
+      const res = await fetch(api.profiles.me.path);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      return res.json();
+    },
+    retry: false
+  });
+
+  useEffect(() => {
+    if (profile) {
+      // If profile exists, set role and skip to details
+      const mappedRole = (profile.role === 'montador') ? 'montador' : 'empresa';
+      setRole(mappedRole);
+      setStep("details");
+    }
+  }, [profile]);
+
   const profileMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch(api.profiles.create.path, {
-        method: "POST",
+      // If profile exists, update it. If not, create it.
+      const endpoint = profile ? api.profiles.update.path : api.profiles.create.path;
+      const method = profile ? "PUT" : "POST";
+      
+      const res = await fetch(endpoint, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
@@ -34,7 +59,7 @@ export default function OnboardingPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/profiles/me"] });
       if (role === "montador") {
-        toast({ title: "Perfil criado!", description: "Bem-vindo ao MontadorConecta." });
+        toast({ title: "Perfil atualizado!", description: "Bem-vindo ao MontadorConecta." });
         setLocation("/");
       }
     },
@@ -62,6 +87,14 @@ export default function OnboardingPage() {
     setRole(selected);
     setStep("details");
   };
+
+  if (isLoadingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   if (step === "role") {
     return (
@@ -118,18 +151,23 @@ export default function OnboardingPage() {
           ) : (
             <CompanyForm 
               onSubmit={async (data) => {
-                // First create profile, then company
                 try {
+                  // 1. Update/Create Profile
                   await profileMutation.mutateAsync({ 
-                    fullName: data.responsavel, // Use responsavel name for profile
-                    role: "lojista" // or marcenaria based on selection
+                    fullName: data.responsavel,
+                    role: data.industryType === 'marcenaria' ? 'marcenaria' : 'lojista',
+                    phone: data.phone,
+                    region: `${data.city}, ${data.state}`
                   });
+                  
+                  // 2. Create Company
                   await companyMutation.mutateAsync(data);
                 } catch (e) {
-                  // handled by mutation
+                  console.error(e);
                 }
               }} 
               isPending={companyMutation.isPending || profileMutation.isPending} 
+              initialData={profile}
             />
           )}
         </CardContent>
@@ -193,21 +231,21 @@ function MontadorForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, 
   );
 }
 
-function CompanyForm({ onSubmit, isPending }: { onSubmit: (data: any) => void, isPending: boolean }) {
+function CompanyForm({ onSubmit, isPending, initialData }: { onSubmit: (data: any) => void, isPending: boolean, initialData?: any }) {
   const form = useForm({
     resolver: zodResolver(insertCompanySchema.extend({ responsavel: z.string().min(3) })),
     defaultValues: {
-      tradingName: "",
-      corporateName: "",
-      cnpj: "",
-      phone: "",
-      emailContact: "",
-      addressFull: "",
-      city: "",
-      state: "",
-      industryType: "lojista",
-      companySize: "pequena",
-      responsavel: "", // Field for the profile creation
+      tradingName: initialData?.tradingName || "",
+      corporateName: initialData?.corporateName || "",
+      cnpj: initialData?.cnpj || "",
+      phone: initialData?.phone || "",
+      emailContact: initialData?.emailContact || "",
+      addressFull: initialData?.addressFull || "",
+      city: initialData?.city || "",
+      state: initialData?.state || "",
+      industryType: initialData?.industryType || "lojista",
+      companySize: initialData?.companySize || "pequena",
+      responsavel: initialData?.responsavel || "", // Field for the profile creation
     }
   });
 
