@@ -62,10 +62,15 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (profile && !initialized) {
-      // If profile exists, set role and skip to details
-      const mappedRole = (profile.role === 'montador') ? 'montador' : 'empresa';
-      setRole(mappedRole);
-      setStep("details");
+      // If profile exists AND is completed (has a name or company name), skip role selection.
+      // If it exists but is empty (just a role), let user choose again/fill details.
+      const isProfileCompleted = !!(profile.fullName || profile.corporateName);
+      
+      if (isProfileCompleted) {
+        const mappedRole = (profile.role === 'montador') ? 'montador' : 'empresa';
+        setRole(mappedRole);
+        setStep("details");
+      }
       setInitialized(true);
     }
   }, [profile, initialized]);
@@ -320,27 +325,27 @@ function CompanyForm({ onSubmit, isPending, initialData }: { onSubmit: (data: an
           <div className="space-y-2">
             <Label htmlFor="tradingName">Nome Fantasia</Label>
             <Input id="tradingName" {...form.register("tradingName")} />
-            {form.formState.errors.tradingName && <p className="text-sm text-red-500">{form.formState.errors.tradingName.message}</p>}
+            {form.formState.errors.tradingName && <p className="text-sm text-red-500">{form.formState.errors.tradingName.message as string}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="corporateName">Razão Social</Label>
             <Input id="corporateName" {...form.register("corporateName")} />
-            {form.formState.errors.corporateName && <p className="text-sm text-red-500">{form.formState.errors.corporateName.message}</p>}
+            {form.formState.errors.corporateName && <p className="text-sm text-red-500">{form.formState.errors.corporateName.message as string}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="cnpj">CNPJ</Label>
             <Input id="cnpj" {...form.register("cnpj")} placeholder="00.000.000/0000-00" />
-            {form.formState.errors.cnpj && <p className="text-sm text-red-500">{form.formState.errors.cnpj.message}</p>}
+            {form.formState.errors.cnpj && <p className="text-sm text-red-500">{form.formState.errors.cnpj.message as string}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Telefone Comercial</Label>
             <Input id="phone" {...form.register("phone")} placeholder="(00) 0000-0000" />
-            {form.formState.errors.phone && <p className="text-sm text-red-500">{form.formState.errors.phone.message}</p>}
+            {form.formState.errors.phone && <p className="text-sm text-red-500">{form.formState.errors.phone.message as string}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="emailContact">Email Corporativo</Label>
             <Input id="emailContact" type="email" {...form.register("emailContact")} />
-            {form.formState.errors.emailContact && <p className="text-sm text-red-500">{form.formState.errors.emailContact.message}</p>}
+            {form.formState.errors.emailContact && <p className="text-sm text-red-500">{form.formState.errors.emailContact.message as string}</p>}
           </div>
         </div>
 
@@ -376,19 +381,19 @@ function CompanyForm({ onSubmit, isPending, initialData }: { onSubmit: (data: an
         <div className="space-y-2">
           <Label htmlFor="addressFull">Endereço Completo</Label>
           <Input id="addressFull" {...form.register("addressFull")} />
-          {form.formState.errors.addressFull && <p className="text-sm text-red-500">{form.formState.errors.addressFull.message}</p>}
+          {form.formState.errors.addressFull && <p className="text-sm text-red-500">{form.formState.errors.addressFull.message as string}</p>}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="city">Cidade</Label>
             <Input id="city" {...form.register("city")} />
-            {form.formState.errors.city && <p className="text-sm text-red-500">{form.formState.errors.city.message}</p>}
+            {form.formState.errors.city && <p className="text-sm text-red-500">{form.formState.errors.city.message as string}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="state">Estado</Label>
             <Input id="state" {...form.register("state")} />
-            {form.formState.errors.state && <p className="text-sm text-red-500">{form.formState.errors.state.message}</p>}
+            {form.formState.errors.state && <p className="text-sm text-red-500">{form.formState.errors.state.message as string}</p>}
           </div>
         </div>
 
@@ -396,7 +401,7 @@ function CompanyForm({ onSubmit, isPending, initialData }: { onSubmit: (data: an
         <div className="space-y-2">
           <Label htmlFor="responsavel">Nome do Responsável</Label>
           <Input id="responsavel" {...form.register("responsavel")} />
-          {form.formState.errors.responsavel && <p className="text-sm text-red-500">{form.formState.errors.responsavel.message}</p>}
+          {form.formState.errors.responsavel && <p className="text-sm text-red-500">{form.formState.errors.responsavel.message as string}</p>}
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
+import { LayoutShell } from "@/components/layout-shell";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import AuthPage from "@/pages/auth-page";
@@ -84,23 +85,38 @@ function Router() {
       <Route path="/onboarding">
         {user ? (isProfileComplete ? <Redirect to="/" /> : <OnboardingPage />) : <Redirect to="/auth" />}
       </Route>
-      <Route path="/">
-        {user ? (isProfileComplete ? <Dashboard /> : <Redirect to="/onboarding" />) : <Landing />}
-      </Route>
       
-      <Route path="/profile">
-        <ProtectedRoute component={Profile} />
+      {/* App Routes with Layout */}
+      <Route>
+        {user && isProfileComplete ? (
+          <LayoutShell>
+            <Switch>
+              <Route path="/">
+                 <Dashboard />
+              </Route>
+              <Route path="/profile">
+                <ProtectedRoute component={Profile} />
+              </Route>
+              <Route path="/services">
+                <ProtectedRoute component={ServicesList} />
+              </Route>
+              <Route component={NotFound} />
+            </Switch>
+          </LayoutShell>
+        ) : (
+          <Switch>
+            <Route path="/">
+               <Landing />
+            </Route>
+             {/* Fallback for other routes if not logged in/complete -> Redirect or 404 */}
+            <Route component={() => <Redirect to={user ? "/onboarding" : "/"} />} />
+          </Switch>
+        )}
       </Route>
-
-      <Route path="/services">
-        <ProtectedRoute component={ServicesList} />
-      </Route>
-
-      {/* Fallback to 404 */}
-      <Route component={NotFound} />
     </Switch>
   );
 }
+
 
 function App() {
   return (

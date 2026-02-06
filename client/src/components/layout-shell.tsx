@@ -13,9 +13,11 @@ import {
   LogOut, 
   Menu,
   Building2,
-  Settings
+  ArrowLeft,
+  Home
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface LayoutShellProps {
   children: React.ReactNode;
@@ -28,15 +30,28 @@ export function LayoutShell({ children }: LayoutShellProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Início", href: "/", icon: Home },
     { name: "Ordens de Serviço", href: "/services", icon: Briefcase },
     { name: "Parceiros", href: "/partnerships", icon: Users },
     { name: "Meu Perfil", href: "/profile", icon: UserCircle },
   ];
 
   if (profile?.role === "partner") {
-    navigation.push({ name: "Minha Empresa", href: "/company", icon: Building2 });
+    // Insert before profile
+    navigation.splice(3, 0, { name: "Minha Empresa", href: "/company", icon: Building2 });
   }
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      // Fallback if no history
+      const [, setLocation] = useLocation();
+      setLocation("/");
+    }
+  };
+
+  const showBackButton = location !== "/";
 
   const NavContent = () => (
     <div className="flex flex-col h-full bg-slate-900 text-white">
@@ -101,36 +116,97 @@ export function LayoutShell({ children }: LayoutShellProps) {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-16 lg:pb-0">
       {/* Desktop Sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
         <NavContent />
       </div>
 
-      {/* Mobile Header */}
-      <div className="lg:hidden sticky top-0 z-40 flex items-center gap-x-4 border-b bg-white px-4 py-4 shadow-sm sm:gap-x-6 sm:px-6">
-        <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="-m-2.5 p-2.5 text-slate-700">
-              <span className="sr-only">Open sidebar</span>
-              <Menu className="h-6 w-6" aria-hidden="true" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-72 border-r-0 bg-slate-900">
-            <NavContent />
-          </SheetContent>
-        </Sheet>
-        <div className="flex-1 text-sm font-semibold leading-6 text-slate-900">
+      {/* Mobile Top Header */}
+      <div className="lg:hidden sticky top-0 z-40 flex items-center gap-x-4 border-b bg-white px-4 py-3 shadow-sm sm:gap-x-6 sm:px-6">
+        {showBackButton ? (
+          <Button variant="ghost" size="icon" onClick={handleBack} className="-ml-2">
+            <ArrowLeft className="h-5 w-5 text-slate-700" />
+          </Button>
+        ) : (
+          <div className="w-9" /> // Spacer to keep title centered or aligned if needed
+        )}
+        
+        <div className="flex-1 text-center font-semibold text-slate-900">
           Montador Conecta
+        </div>
+
+        <div className="w-9">
+             {/* Placeholder for right side action if needed, or maybe the menu? 
+                 If we use Bottom Nav, we don't strictly need the menu here unless for logout.
+                 Let's keep the menu but maybe as a settings/logout trigger? 
+                 Or just keep it as is for consistency with current code, but modify content?
+             */}
+             <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="-mr-2">
+                  <Menu className="h-6 w-6 text-slate-700" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="p-0 w-72 bg-slate-900">
+                <NavContent />
+              </SheetContent>
+            </Sheet>
         </div>
       </div>
 
       {/* Main Content */}
       <main className="lg:pl-72 min-h-screen">
-        <div className="px-4 py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          {children}
+        {/* Desktop Back Button Area */}
+        <div className="hidden lg:flex items-center px-8 py-4">
+            {showBackButton && (
+                <Button variant="ghost" onClick={handleBack} className="gap-2 pl-0 hover:bg-transparent hover:text-blue-600">
+                    <ArrowLeft className="h-4 w-4" />
+                    Voltar
+                </Button>
+            )}
+        </div>
+
+        <div className="px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around items-center z-50 h-16 pb-[env(safe-area-inset-bottom)] box-content shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        {navigation.map((item) => {
+          const isActive = location === item.href;
+          return (
+            <Link key={item.name} href={item.href}>
+              <div className="flex flex-col items-center justify-center w-full h-full py-1 px-2 cursor-pointer">
+                <div className={cn(
+                    "p-1.5 rounded-full transition-colors mb-0.5",
+                    isActive ? "bg-blue-100 text-blue-600" : "text-slate-500"
+                )}>
+                    <item.icon className="w-5 h-5" />
+                </div>
+                <span className={cn(
+                    "text-[10px] font-medium leading-none", 
+                    isActive ? "text-blue-600" : "text-slate-500"
+                )}>
+                    {item.name.split(' ')[0]} {/* Shorten name for mobile */}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
+

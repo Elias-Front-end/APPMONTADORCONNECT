@@ -1,13 +1,20 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { pool } from "./db";
-import { User } from "@shared/schema";
+import { User as DbUser } from "@shared/schema";
 import connectPg from "connect-pg-simple";
+
+// Extend Express Request type to include Passport methods
+declare global {
+  namespace Express {
+    interface User extends DbUser {} // Merge with our User type
+  }
+}
 
 const scryptAsync = promisify(scrypt);
 
@@ -52,7 +59,7 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy(async (username: string, password: string, done: (err: any, user?: any) => void) => {
       try {
         const user = await storage.getUserByUsername(username);
         if (!user || !(await comparePasswords(password, user.password))) {
@@ -66,8 +73,11 @@ export function setupAuth(app: Express) {
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, (user as User).id));
-  passport.deserializeUser(async (id: string, done) => {
+  passport.serializeUser((user: Express.User, done: (err: any, id?: unknown) => void) => {
+    done(null, user.id);
+  });
+
+  passport.deserializeUser(async (id: string, done: (err: any, user?: Express.User | null) => void) => {
     try {
       const user = await storage.getUser(id);
       done(null, user);
@@ -107,10 +117,13 @@ export function setupAuth(app: Express) {
             // Default empty values
             fullName: "",
             phone: "",
+            avatarUrl: null,
             bio: "",
+            cpf: null,
             skills: [],
             experienceYears: 0,
             region: "",
+            companyId: null,
             reputationScore: 0,
             level: 'iniciante'
           });
@@ -120,7 +133,7 @@ export function setupAuth(app: Express) {
         }
       }
 
-      req.login(user, (err) => {
+      req.login(user, (err: any) => {
         if (err) return next(err);
         res.status(201).json(user);
       });
@@ -135,7 +148,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res, next) => {
-    req.logout((err) => {
+    req.logout((err: any) => {
       if (err) return next(err);
       res.sendStatus(200);
     });

@@ -15,14 +15,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Briefcase, User as UserIcon, Building2 } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Schema for login/register
 const authSchema = z.object({
   username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  role: z.enum(["montador", "marcenaria", "lojista"]).optional(), // "marcenaria" or "lojista" maps to "empresa" logic or specific roles
+  // Role removed from signup to let user choose in onboarding
 });
 
 type AuthFormValues = z.infer<typeof authSchema>;
@@ -42,7 +42,6 @@ export default function AuthPage() {
     defaultValues: {
       username: "",
       password: "",
-      role: "montador",
     },
   });
 
@@ -149,39 +148,9 @@ export default function AuthPage() {
                       )}
                     </div>
 
-                    <div className="space-y-4 pt-4 border-t">
-                      <Label className="text-base font-medium">Eu quero me cadastrar como:</Label>
-                      <RadioGroup 
-                        defaultValue="montador" 
-                        onValueChange={(val) => form.setValue("role", val as any)}
-                        className="grid grid-cols-2 gap-4"
-                      >
-                        <div>
-                          <RadioGroupItem value="montador" id="role-montador" className="peer sr-only" />
-                          <Label
-                            htmlFor="role-montador"
-                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                          >
-                            <UserIcon className="mb-2 h-6 w-6" />
-                            Montador
-                          </Label>
-                        </div>
-                        <div>
-                          <RadioGroupItem value="marcenaria" id="role-marcenaria" className="peer sr-only" />
-                          <Label
-                            htmlFor="role-marcenaria"
-                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                          >
-                            <Building2 className="mb-2 h-6 w-6" />
-                            Empresa
-                          </Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-
                     <Button 
                         type="submit" 
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className="w-full bg-blue-600 hover:bg-blue-700 mt-6"
                         disabled={registerMutation.isPending}
                     >
                       {registerMutation.isPending ? "Criando conta..." : "Criar Conta"}

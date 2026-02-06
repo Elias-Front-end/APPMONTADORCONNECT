@@ -52,9 +52,23 @@ export async function registerRoutes(
     const user = req.user as any;
     try {
       const input = api.profiles.create.input.parse({ ...req.body, id: user.id }); // force ID match
+      
+      // Security check for role
+      if (input.role && !["montador", "marcenaria", "lojista"].includes(input.role)) {
+         return res.status(403).json({ message: "Tipo de perfil inválido ou não permitido." });
+      }
+
+      // Handle unique constraint for CPF (empty string to null)
+      if (input.cpf === "") input.cpf = null;
+
       const profile = await storage.createProfile({ ...input, id: user.id });
       res.status(201).json(profile);
     } catch (err) {
+      // Handle unique constraint violation specifically
+      if (err instanceof Error && 'code' in err && err.code === '23505') {
+          return res.status(409).json({ message: "Este CPF já está cadastrado em outra conta." });
+      }
+
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
@@ -67,6 +81,15 @@ export async function registerRoutes(
     const user = req.user as any;
     try {
       const input = api.profiles.update.input.parse(req.body);
+      
+      // Security check for role: Prevent escalation to admin
+      if (input.role && !["montador", "marcenaria", "lojista"].includes(input.role)) {
+         // If trying to change to something restricted, ignore or error.
+         // Let's check if the user IS already an admin? 
+         // For now, simply block setting restricted roles via API.
+         return res.status(403).json({ message: "Tipo de perfil inválido ou não permitido." });
+      }
+
       // Remove empty strings from unique fields if they are optional/nullable in logic but unique in DB
       // However, schema says cpf is unique. If user sends empty string "" and another user has "", it clashes?
       // Postgres unique constraint allows multiple NULLs but treats empty string "" as a value.
@@ -251,7 +274,7 @@ export async function registerRoutes(
 
   // Reviews
   app.get(api.services.getReviews.path, async (req, res) => {
-    const reviews = await storage.getReviews(req.params.id); // Note: getReviews uses userId/revieweeId currently
+    const reviews = await storage.getReviews(req.params.id as string); // Note: getReviews uses userId/revieweeId currently
     // Wait, getReviews in storage takes userId, but here the route is /services/:id/reviews
     // The requirement is reviews FOR a service or FOR a montador?
     // User said: "Mecanismo de avaliação pós-serviço".
