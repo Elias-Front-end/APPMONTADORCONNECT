@@ -29,7 +29,7 @@ async function login(credentials: Pick<InsertUser, "username" | "password">): Pr
   return response.json();
 }
 
-async function register(user: InsertUser): Promise<User> {
+async function register(user: InsertUser & { role?: string }): Promise<User> {
   const response = await fetch("/api/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

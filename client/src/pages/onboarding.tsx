@@ -64,15 +64,16 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (profile && !initialized) {
-      // If profile exists AND is completed (has a name or company name), skip role selection.
-      // If it exists but is empty (just a role), let user choose again/fill details.
-      const isProfileCompleted = !!(profile.fullName || profile.corporateName);
+      // If profile exists, it might have been created during registration with a specific role.
+      // We should respect that role and jump to details.
       
-      if (isProfileCompleted) {
-        const mappedRole = (profile.role === 'montador') ? 'montador' : 'empresa';
-        setRole(mappedRole);
-        setStep("details");
+      if (profile.role) {
+         // Map database role to UI role state
+         const mappedRole = (profile.role === 'montador') ? 'montador' : 'empresa';
+         setRole(mappedRole);
+         setStep("details");
       }
+      
       setInitialized(true);
     }
   }, [profile, initialized]);

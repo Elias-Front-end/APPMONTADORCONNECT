@@ -14,10 +14,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Briefcase, UserPlus, LogIn, ArrowLeft } from "lucide-react";
+import { Briefcase, UserPlus, LogIn, ArrowLeft, Wrench, Building2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Schema for login/register
 const authSchema = z.object({
   username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
@@ -28,7 +27,9 @@ type AuthFormValues = z.infer<typeof authSchema>;
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
-  const [mode, setMode] = useState<"selection" | "login" | "register">("selection");
+  // Modes: selection (initial), login, role_selection (new), register (final)
+  const [mode, setMode] = useState<"selection" | "login" | "role_selection" | "register">("selection");
+  const [selectedRole, setSelectedRole] = useState<"montador" | "marcenaria" | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -44,7 +45,6 @@ export default function AuthPage() {
     },
   });
 
-  // Reset form when switching modes
   useEffect(() => {
     form.reset();
   }, [mode, form]);
@@ -53,7 +53,10 @@ export default function AuthPage() {
     if (mode === "login") {
       loginMutation.mutate(data);
     } else if (mode === "register") {
-      registerMutation.mutate(data);
+      registerMutation.mutate({
+        ...data,
+        role: selectedRole || undefined // Send selected role to backend
+      });
     }
   };
 
@@ -61,6 +64,11 @@ export default function AuthPage() {
     hidden: { opacity: 0, x: -20 },
     visible: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: 20 }
+  };
+
+  const handleRoleSelect = (role: "montador" | "marcenaria") => {
+    setSelectedRole(role);
+    setMode("register");
   };
 
   return (
@@ -78,6 +86,7 @@ export default function AuthPage() {
           </div>
 
           <AnimatePresence mode="wait">
+            {/* 1. Initial Selection */}
             {mode === "selection" && (
               <motion.div
                 key="selection"
@@ -108,7 +117,7 @@ export default function AuthPage() {
                   </button>
 
                   <button
-                    onClick={() => setMode("register")}
+                    onClick={() => setMode("role_selection")} // Go to role selection first
                     className="flex items-center p-6 text-left border-2 border-slate-100 rounded-xl hover:border-blue-600 hover:bg-blue-50/50 transition-all group"
                   >
                     <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -123,9 +132,10 @@ export default function AuthPage() {
               </motion.div>
             )}
 
-            {(mode === "login" || mode === "register") && (
+            {/* 2. Role Selection (New Step) */}
+            {mode === "role_selection" && (
               <motion.div
-                key="form"
+                key="role_selection"
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
@@ -138,18 +148,74 @@ export default function AuthPage() {
                   className="mb-6 pl-0 hover:bg-transparent hover:text-blue-600 -ml-2"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Voltar para opções
+                  Voltar
+                </Button>
+
+                <div className="space-y-6">
+                   <div className="text-center lg:text-left space-y-2">
+                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Qual seu perfil?</h1>
+                    <p className="text-slate-500">Selecione como você vai atuar na plataforma.</p>
+                  </div>
+
+                  <div className="grid gap-4">
+                    <button
+                      onClick={() => handleRoleSelect("montador")}
+                      className="flex items-center p-6 text-left border-2 border-slate-100 rounded-xl hover:border-blue-600 hover:bg-blue-50/50 transition-all group"
+                    >
+                      <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <Wrench className="w-6 h-6" />
+                      </div>
+                      <div className="ml-4">
+                        <h3 className="font-semibold text-slate-900">Sou Montador</h3>
+                        <p className="text-sm text-slate-500">Quero oferecer meus serviços de montagem</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => handleRoleSelect("marcenaria")}
+                      className="flex items-center p-6 text-left border-2 border-slate-100 rounded-xl hover:border-blue-600 hover:bg-blue-50/50 transition-all group"
+                    >
+                      <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <Building2 className="w-6 h-6" />
+                      </div>
+                      <div className="ml-4">
+                        <h3 className="font-semibold text-slate-900">Sou Empresa</h3>
+                        <p className="text-sm text-slate-500">Sou lojista ou marcenaria e preciso contratar</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* 3. Login or Register Form */}
+            {(mode === "login" || mode === "register") && (
+              <motion.div
+                key="form"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                transition={{ duration: 0.3 }}
+              >
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setMode(mode === "login" ? "selection" : "role_selection")}
+                  className="mb-6 pl-0 hover:bg-transparent hover:text-blue-600 -ml-2"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Voltar
                 </Button>
 
                 <Card className="border-0 shadow-none">
                   <CardHeader className="px-0 pt-0">
                     <CardTitle className="text-2xl">
-                      {mode === "login" ? "Bem-vindo de volta" : "Crie sua conta"}
+                      {mode === "login" ? "Bem-vindo de volta" : `Cadastro de ${selectedRole === 'montador' ? 'Montador' : 'Empresa'}`}
                     </CardTitle>
                     <CardDescription>
                       {mode === "login" 
                         ? "Entre com suas credenciais para acessar." 
-                        : "Preencha os dados abaixo para começar."}
+                        : "Defina seu usuário e senha para acessar."}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="px-0">
@@ -185,7 +251,7 @@ export default function AuthPage() {
                       >
                         {mode === "login" 
                           ? (loginMutation.isPending ? "Entrando..." : "Entrar")
-                          : (registerMutation.isPending ? "Criando conta..." : "Criar Conta")
+                          : (registerMutation.isPending ? "Criar Conta" : "Finalizar Cadastro")
                         }
                       </Button>
                     </form>
@@ -208,7 +274,6 @@ export default function AuthPage() {
             Gerencie seus serviços, conecte-se com lojas e receba pagamentos de forma segura e simples.
           </p>
           
-          {/* Visual decorative elements */}
           <div className="grid grid-cols-2 gap-4 mt-12 opacity-80">
             <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/10">
               <div className="text-2xl font-bold mb-1">24h</div>
