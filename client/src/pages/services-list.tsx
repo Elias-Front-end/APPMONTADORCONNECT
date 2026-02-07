@@ -1,5 +1,4 @@
 import { useServices } from "@/hooks/use-services";
-import { LayoutShell } from "@/components/layout-shell";
 import { ServiceCard } from "@/components/service-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -16,8 +15,8 @@ export default function ServicesList() {
   ) || [];
 
   return (
-    <LayoutShell>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-slate-900">
             Ordens de Serviço
@@ -67,6 +66,6 @@ export default function ServicesList() {
           )}
         </>
       )}
-    </LayoutShell>
+    </div>
   );
 }

@@ -5,7 +5,6 @@ import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile, useUpdateProfile, useCreateProfile } from "@/hooks/use-profiles";
 import { insertProfileSchema } from "@shared/schema";
-import { LayoutShell } from "@/components/layout-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,17 +97,14 @@ export default function Profile() {
 
   if (isLoadingProfile) {
     return (
-      <LayoutShell>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        </div>
-      </LayoutShell>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
     );
   }
 
   return (
-    <LayoutShell>
-      <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-display font-bold text-slate-900 mb-2">
           {isEditing ? "Editar Perfil" : "Criar seu Perfil"}
         </h1>
@@ -270,6 +266,5 @@ export default function Profile() {
           </CardContent>
         </Card>
       </div>
-    </LayoutShell>
   );
 }
