@@ -13,6 +13,21 @@ export function useCompanies() {
   });
 }
 
+export function useCompany(id?: number) {
+  return useQuery({
+    queryKey: [api.companies.get.path, id],
+    queryFn: async () => {
+      if (!id) return null;
+      const url = buildUrl(api.companies.get.path, { id });
+      const res = await fetch(url, { credentials: "include" });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch company");
+      return api.companies.get.responses[200].parse(await res.json());
+    },
+    enabled: !!id,
+  });
+}
+
 export function useCreateCompany() {
   const queryClient = useQueryClient();
   return useMutation({
