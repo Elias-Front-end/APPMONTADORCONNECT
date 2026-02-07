@@ -13,6 +13,8 @@ import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import Profile from "@/pages/profile";
 import ServicesList from "@/pages/services-list";
+import CreateServicePage from "@/pages/company/services/new";
+import ServiceDetailsPage from "@/pages/company/services/details"; // Já adicionando para evitar refatoração futura
 import OnboardingPage from "@/pages/onboarding";
 import { Loader2 } from "lucide-react";
 import { api } from "@shared/routes";
@@ -127,6 +129,17 @@ function Router() {
               <Route path="/services">
                 <ProtectedRoute component={ServicesList} />
               </Route>
+              
+              {/* Company Routes */}
+              <Route path="/services/new">
+                <ProtectedRoute component={CreateServicePage} />
+              </Route>            
+              
+              {/* Dynamic route for details */}
+              <Route path="/services/:id">
+                 <ProtectedRoute component={ServiceDetailsPage} />
+              </Route>
+
               <Route component={NotFound} />
             </Switch>
           </LayoutShell>
