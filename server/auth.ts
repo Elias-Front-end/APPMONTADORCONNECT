@@ -9,6 +9,7 @@ import { pool } from "./db";
 import { User as DbUser } from "@shared/schema";
 import connectPg from "connect-pg-simple";
 import { createLogger } from "./logger";
+import { authLimiter } from "./middleware/rate-limit";
 
 const logger = createLogger("Auth");
 
@@ -20,6 +21,26 @@ declare global {
 }
 
 const scryptAsync = promisify(scrypt);
+
+/**
+ * Valida a força da senha
+ * Requisitos: mínimo 8 caracteres, 1 maiúscula, 1 minúscula, 1 número
+ */
+function validatePasswordStrength(password: string): { valid: boolean; message?: string } {
+  if (password.length < 8) {
+    return { valid: false, message: "A senha deve ter pelo menos 8 caracteres" };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: "A senha deve conter pelo menos uma letra maiúscula" };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, message: "A senha deve conter pelo menos uma letra minúscula" };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, message: "A senha deve conter pelo menos um número" };
+  }
+  return { valid: true };
+}
 
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -36,6 +57,14 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   logger.info("Setting up authentication...");
+  
+  // Validar que SESSION_SECRET está definido
+  if (!process.env.SESSION_SECRET) {
+    const errorMsg = 'SECURITY ERROR: SESSION_SECRET must be defined in environment variables';
+    logger.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+  
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
@@ -48,13 +77,15 @@ export function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || "super secret session key",
+      secret: process.env.SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
       store: sessionStore,
       cookie: {
         secure: app.get("env") === "production",
         maxAge: sessionTtl,
+        httpOnly: true, // Previne acesso via JavaScript
+        sameSite: 'lax', // Proteção contra CSRF
       }
     })
   );
@@ -104,12 +135,19 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", async (req, res, next) => {
+  app.post("/api/register", authLimiter, async (req, res, next) => {
     logger.info(`Registration attempt for username: ${req.body.username}`);
     try {
       if (!req.body.username || !req.body.password) {
         logger.warn("Registration failed: Missing username or password");
         return res.status(400).send("Username and password are required");
+      }
+
+      // Validar força da senha
+      const passwordValidation = validatePasswordStrength(req.body.password);
+      if (!passwordValidation.valid) {
+        logger.warn(`Registration failed: Weak password for username: ${req.body.username}`);
+        return res.status(400).send(passwordValidation.message);
       }
 
       const existingUser = await storage.getUserByUsername(req.body.username);
@@ -172,7 +210,7 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", (req, res, next) => {
+  app.post("/api/login", authLimiter, (req, res, next) => {
     logger.debug("Login request received");
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {

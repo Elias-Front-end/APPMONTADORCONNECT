@@ -9,6 +9,8 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import express from "express";
+import { requireAuth } from "./middleware/auth";
+import { validateRole, sanitizeProfileInput } from "./utils/profile-utils";
 
 import { createLogger } from "./logger";
 
@@ -43,8 +45,7 @@ export async function registerRoutes(
   setupAuth(app);
 
   // Profiles
-  app.get(api.profiles.me.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.profiles.me.path, requireAuth, async (req, res) => {
     const user = req.user as any;
     logger.debug(`Fetching profile for user: ${user.username} (ID: ${user.id})`);
     try {
@@ -60,8 +61,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.profiles.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.profiles.create.path, requireAuth, async (req, res) => {
     const user = req.user as any;
     logger.info(`Creating profile for user: ${user.username} (ID: ${user.id})`);
     
@@ -69,15 +69,15 @@ export async function registerRoutes(
       const input = api.profiles.create.input.parse({ ...req.body, id: user.id }); // force ID match
       
       // Security check for role
-      if (input.role && !["montador", "marcenaria", "lojista"].includes(input.role)) {
+      if (input.role && !validateRole(input.role)) {
          logger.warn(`Invalid role attempt: ${input.role} for user ${user.id}`);
          return res.status(403).json({ message: "Tipo de perfil inválido ou não permitido." });
       }
 
-      // Handle unique constraint for CPF (empty string to null)
-      if (input.cpf === "") input.cpf = null;
+      // Sanitize input
+      const sanitized = sanitizeProfileInput(input);
 
-      const profile = await storage.createProfile({ ...input, id: user.id });
+      const profile = await storage.createProfile({ ...sanitized, id: user.id });
       logger.info(`Profile created successfully for user ${user.id}`);
       res.status(201).json(profile);
     } catch (err) {
@@ -96,8 +96,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.profiles.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.put(api.profiles.update.path, requireAuth, async (req, res) => {
     const user = req.user as any;
     logger.info(`Updating profile for user: ${user.username} (ID: ${user.id})`);
     
@@ -105,18 +104,15 @@ export async function registerRoutes(
       const input = api.profiles.update.input.parse(req.body);
       
       // Security check for role: Prevent escalation to admin
-      if (input.role && !["montador", "marcenaria", "lojista"].includes(input.role)) {
+      if (input.role && !validateRole(input.role)) {
          logger.warn(`Invalid role update attempt: ${input.role} for user ${user.id}`);
          return res.status(403).json({ message: "Tipo de perfil inválido ou não permitido." });
       }
 
-      // Remove empty strings from unique fields if they are optional/nullable in logic but unique in DB
-      // However, schema says cpf is unique. If user sends empty string "" and another user has "", it clashes?
-      // Postgres unique constraint allows multiple NULLs but treats empty string "" as a value.
-      // So we must convert empty strings to null for unique fields.
-      if (input.cpf === "") input.cpf = null;
+      // Sanitize input
+      const sanitized = sanitizeProfileInput(input);
 
-      const profile = await storage.updateProfile(user.id, input);
+      const profile = await storage.updateProfile(user.id, sanitized);
       logger.info(`Profile updated successfully for user ${user.id}`);
       res.json(profile);
 
@@ -129,7 +125,7 @@ export async function registerRoutes(
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
-      console.error("Error updating profile:", err);
+      logger.error("Error updating profile:", err);
       res.status(500).json({ message: "Erro interno ao atualizar perfil" });
     }
   });
