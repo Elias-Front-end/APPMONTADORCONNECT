@@ -32,9 +32,9 @@ export default function CreateServicePage() {
 
       // 2. Upload Files if any
       if (files && files.length > 0) {
-        for (const file of Array.from(files as FileList)) {
+        for (const file of files) {
             const formData = new FormData();
-            formData.append('file', file as File);
+            formData.append('file', file);
             
             const uploadRes = await fetch(`/api/services/${service.id}/attachments`, {
                 method: 'POST',

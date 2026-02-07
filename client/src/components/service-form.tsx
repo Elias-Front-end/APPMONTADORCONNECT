@@ -16,14 +16,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 
 // Extend schema for frontend validation if needed
-const formSchema = insertServiceSchema.extend({
+const formSchema = insertServiceSchema.omit({
+  companyId: true,
+  creatorId: true,
+  status: true,
+  title: true, // We override this below
+  clientName: true,
+  addressFull: true,
+}).extend({
   addressFull: z.string().min(5, "Endereço completo é obrigatório"),
   clientName: z.string().min(2, "Nome do cliente é obrigatório"),
   title: z.string().min(5, "Título do serviço é obrigatório"),
   price: z.coerce.number().min(0, "O valor deve ser positivo"),
 });
 
-type ServiceFormValues = z.infer<typeof formSchema> & { files?: FileList };
+type ServiceFormValues = z.infer<typeof formSchema> & { files?: File[] };
 
 interface ServiceFormProps {
   defaultValues?: Partial<ServiceFormValues>;
@@ -58,6 +65,8 @@ export function ServiceForm({ defaultValues, onSubmit, isSubmitting = false, isE
     defaultValues: {
       title: "",
       description: "",
+      // clientName: "", // Optional in schema? No, required in extend.
+      // We should provide defaults for all required fields or let them be empty string
       clientName: "",
       clientPhone: "",
       addressFull: "",
@@ -66,7 +75,7 @@ export function ServiceForm({ defaultValues, onSubmit, isSubmitting = false, isE
       minQualification: "iniciante",
       durationHours: 1,
       isUrgent: false,
-      status: "draft",
+      // status: "draft", // Removed status from schema, so remove from defaults
       ...defaultValues,
     },
   });
@@ -94,11 +103,10 @@ export function ServiceForm({ defaultValues, onSubmit, isSubmitting = false, isE
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleFormSubmit = async (data: ServiceFormValues) => {
+  const handleFormSubmit = async (data: any) => {
     // Inject files into data specifically for our parent handler to see
-    // We cast to any because files is not in schema but needed for upload
-    const submitData = { ...data, files: files as any };
-    await onSubmit(submitData);
+    // We pass files state which is File[]
+    await onSubmit({ ...data, files });
   };
 
   const currentAddress = form.watch("addressFull");
@@ -226,7 +234,7 @@ export function ServiceForm({ defaultValues, onSubmit, isSubmitting = false, isE
             
             {/* Project Files Upload */}
             <div className="space-y-2">
-               <FormLabel>Projeto / Manuais (PDF ou Imagem)</FormLabel>
+               <FormLabel>Projeto / Manuais - <span className="font-normal text-slate-500">(Opcional)</span></FormLabel>
                <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                   <Upload className="w-8 h-8 text-slate-400 mb-2" />
                   <p className="text-sm font-medium text-slate-600">Clique para selecionar arquivos</p>
