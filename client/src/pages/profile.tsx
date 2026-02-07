@@ -244,8 +244,8 @@ function CompanyProfileForm({ profile }: { profile: any }) {
       addressFull: "",
       city: "",
       state: "",
-      industryType: "lojista" as const,
-      companySize: "pequena" as const,
+      industryType: "lojista",
+      companySize: "pequena",
       responsavel: profile?.fullName || "", // Responsavel comes from profile.fullName
     },
   });
