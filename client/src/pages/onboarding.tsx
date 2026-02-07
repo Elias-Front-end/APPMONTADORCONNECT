@@ -28,7 +28,7 @@ const montadorSchema = insertProfileSchema.extend({
   experienceYears: z.number().min(0, "Experiência não pode ser negativa"),
 });
 
-const companyFormSchema = insertCompanySchema.extend({
+const companyFormSchema = insertCompanySchema.omit({ ownerId: true }).extend({
   tradingName: z.string().min(2, "Nome fantasia obrigatório"),
   corporateName: z.string().min(2, "Razão social obrigatória"),
   cnpj: z.string().refine(isValidCNPJ, "CNPJ inválido"),
