@@ -35,24 +35,6 @@ export function useService(id: number) {
   });
 }
 
-export function useDeleteService() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: number) => {
-      const url = buildUrl(api.services.delete.path, { id });
-      const res = await fetch(url, { 
-          method: api.services.delete.method,
-          credentials: 'include'
-      });
-      
-      if (!res.ok) {
-        throw new Error("Failed to delete service");
-      }
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.services.list.path] }),
-  });
-}
-
 export function useCreateService() {
   const queryClient = useQueryClient();
   return useMutation({

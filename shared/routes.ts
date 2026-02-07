@@ -46,7 +46,6 @@ export const api = {
     get: { method: 'GET' as const, path: '/api/services/:id', responses: { 200: z.custom<typeof services.$inferSelect>(), 404: errorSchemas.notFound } },
     create: { method: 'POST' as const, path: '/api/services', input: insertServiceSchema, responses: { 201: z.custom<typeof services.$inferSelect>(), 400: errorSchemas.validation } },
     update: { method: 'PUT' as const, path: '/api/services/:id', input: insertServiceSchema.partial(), responses: { 200: z.custom<typeof services.$inferSelect>(), 400: errorSchemas.validation, 404: errorSchemas.notFound } },
-    delete: { method: 'DELETE' as const, path: '/api/services/:id', responses: { 204: z.void(), 404: errorSchemas.notFound } },
     
     // Sub-resources
     getAssignments: { method: 'GET' as const, path: '/api/services/:id/assignments', responses: { 200: z.array(z.custom<typeof serviceAssignments.$inferSelect>()) } },

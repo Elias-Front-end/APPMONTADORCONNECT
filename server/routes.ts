@@ -245,33 +245,6 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.services.delete.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    
-    // Check if service exists
-    const service = await storage.getService(Number(req.params.id));
-    if (!service) return res.status(404).json({ message: "Service not found" });
-
-    // Check ownership
-    const user = req.user as any;
-    const profile = await storage.getProfile(user.id);
-    
-    // Only company owner (who created it or owns the company) can delete
-    // OR admin.
-    // Simplifying: if user is creator or owner of company of service
-    if (service.creatorId !== user.id && service.companyId !== profile?.companyId) {
-        return res.status(403).json({ message: "Not authorized to delete this service" });
-    }
-
-    try {
-      await storage.deleteService(service.id);
-      res.sendStatus(204);
-    } catch (err) {
-      logger.error("Error deleting service:", err);
-      res.status(500).json({ message: "Internal Server Error" });
-    }
-  });
-
   // Service Attachments
   app.get(api.services.getAttachments.path, async (req, res) => {
     const attachments = await storage.getServiceAttachments(Number(req.params.id));

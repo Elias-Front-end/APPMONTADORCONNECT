@@ -37,7 +37,6 @@ export interface IStorage {
   getService(id: number): Promise<Service | undefined>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: number, service: Partial<InsertService>): Promise<Service>;
-  deleteService(id: number): Promise<void>;
 
   // Service Attachments
   getServiceAttachments(serviceId: number): Promise<ServiceAttachment[]>;
@@ -168,10 +167,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(services.id, id))
       .returning();
     return service;
-  }
-
-  async deleteService(id: number): Promise<void> {
-    await db.delete(services).where(eq(services.id, id));
   }
 
   // Service Attachments
