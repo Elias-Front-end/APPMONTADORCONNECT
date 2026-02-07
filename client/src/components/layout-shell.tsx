@@ -117,43 +117,38 @@ export function LayoutShell({ children }: LayoutShellProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-16 lg:pb-0">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
+      {/* Desktop Sidebar - Only visible on large screens */}
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <NavContent />
-      </div>
+      </aside>
 
-      {/* Mobile Top Header */}
-      <div className="lg:hidden sticky top-0 z-40 flex items-center gap-x-4 border-b bg-white px-4 py-3 shadow-sm sm:gap-x-6 sm:px-6">
+      {/* Mobile Top Header - Only visible on small screens */}
+      <header className="lg:hidden sticky top-0 z-40 flex items-center gap-x-4 border-b bg-white px-4 py-3 shadow-sm">
         {showBackButton ? (
           <Button variant="ghost" size="icon" onClick={handleBack} className="-ml-2">
             <ArrowLeft className="h-5 w-5 text-slate-700" />
           </Button>
         ) : (
-          <div className="w-9" /> // Spacer to keep title centered or aligned if needed
+          <div className="w-9" />
         )}
         
-        <div className="flex-1 text-center font-semibold text-slate-900">
-          Montador Conecta
+        <div className="flex-1 text-center">
+          <span className="font-display font-bold text-slate-900">
+            Montador<span className="text-blue-600">Conecta</span>
+          </span>
         </div>
 
-        <div className="w-9">
-             {/* Placeholder for right side action if needed, or maybe the menu? 
-                 If we use Bottom Nav, we don't strictly need the menu here unless for logout.
-                 Let's keep the menu but maybe as a settings/logout trigger? 
-                 Or just keep it as is for consistency with current code, but modify content?
-             */}
-             <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="-mr-2">
-                  <Menu className="h-6 w-6 text-slate-700" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="p-0 w-72 bg-slate-900">
-                <NavContent />
-              </SheetContent>
-            </Sheet>
-        </div>
-      </div>
+        <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="-mr-2">
+              <Menu className="h-6 w-6 text-slate-700" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="p-0 w-72 bg-slate-900">
+            <NavContent />
+          </SheetContent>
+        </Sheet>
+      </header>
 
       {/* Main Content */}
       <main className="lg:pl-72 min-h-screen">
