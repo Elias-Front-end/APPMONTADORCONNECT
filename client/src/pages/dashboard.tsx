@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profiles";
 import { useServices } from "@/hooks/use-services";
 import { ServiceCard } from "@/components/service-card";
+import { CompanyDashboard } from "@/components/company-dashboard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,13 +45,28 @@ export default function Dashboard() {
     );
   }
 
-  // Filter services based on role
-  const myServices = services?.filter(s => 
-    profile.role === 'montador' 
-      ? s.montadorId === profile.id
-      : s.companyId === profile.companyId
-  ) || [];
+  const isCompany = profile.role === 'marcenaria' || profile.role === 'lojista';
 
+  if (isCompany && profile.companyId) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-slate-900">
+              Olá, {profile.fullName || user?.firstName}
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Painel de Controle da Empresa
+            </p>
+          </div>
+        </div>
+        <CompanyDashboard companyId={profile.companyId} />
+      </div>
+    );
+  }
+
+  // Montador Dashboard (Default view for now)
+  const myServices = services?.filter(s => s.montadorId === profile.id) || [];
   const upcomingServices = myServices.filter(s => ['scheduled', 'in_progress'].includes(s.status || '')).slice(0, 3);
   
   const totalEarnings = myServices
@@ -73,14 +89,6 @@ export default function Dashboard() {
             Aqui está o resumo das suas atividades hoje.
           </p>
         </div>
-        {(profile.role === 'marcenaria' || profile.role === 'lojista') && (
-          <Link href="/services/new">
-            <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20">
-              <Plus className="w-5 h-5 mr-2" />
-              Nova Ordem de Serviço
-            </Button>
-          </Link>
-        )}
       </div>
 
       {/* Stats Grid */}
@@ -132,7 +140,7 @@ export default function Dashboard() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-slate-900">
-            {profile.role === 'montador' ? 'Próximos Serviços' : 'Serviços Recentes'}
+            Próximos Serviços
           </h2>
           <Link href="/services">
             <Button variant="ghost" className="text-blue-600 hover:bg-blue-50">Ver todos</Button>
@@ -153,15 +161,8 @@ export default function Dashboard() {
               </div>
               <h3 className="text-lg font-medium text-slate-900">Nenhum serviço agendado</h3>
               <p className="text-slate-500 max-w-sm mt-1 mb-6">
-                {profile.role === 'montador' 
-                  ? 'Você não tem serviços agendados para os próximos dias.'
-                  : 'Sua empresa ainda não criou ordens de serviço.'}
+                Você não tem serviços agendados para os próximos dias.
               </p>
-              {(profile.role === 'marcenaria' || profile.role === 'lojista') && (
-                <Link href="/services/new">
-                  <Button>Criar Serviço</Button>
-                </Link>
-              )}
             </CardContent>
           </Card>
         )}
