@@ -19,6 +19,8 @@ import {
   userRoleEnum,
   serviceStatusEnum,
   partnershipStatusEnum,
+  fileTypeEnum,
+  assignmentStatusEnum,
   complexityLevelEnum
 } from './schema';
 
@@ -68,6 +70,12 @@ export const api = {
     list: { method: 'GET' as const, path: '/api/partnerships', responses: { 200: z.array(z.custom<typeof partnerships.$inferSelect>()) } },
     create: { method: 'POST' as const, path: '/api/partnerships', input: insertPartnershipSchema, responses: { 201: z.custom<typeof partnerships.$inferSelect>(), 400: errorSchemas.validation } },
     update: { method: 'PUT' as const, path: '/api/partnerships/:id', input: insertPartnershipSchema.partial(), responses: { 200: z.custom<typeof partnerships.$inferSelect>(), 400: errorSchemas.validation } },
+  },
+  montadores: {
+    list: { method: 'GET' as const, path: '/api/montadores', responses: { 200: z.array(z.custom<typeof profiles.$inferSelect>()) } },
+  },
+  assignments: {
+    update: { method: 'PUT' as const, path: '/api/assignments/:id', input: z.object({ status: z.enum(assignmentStatusEnum.enumValues) }), responses: { 200: z.custom<typeof serviceAssignments.$inferSelect>(), 400: errorSchemas.validation, 404: errorSchemas.notFound } }
   }
 };
 

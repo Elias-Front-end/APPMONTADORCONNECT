@@ -188,8 +188,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Service Assignments
-  async getServiceAssignments(serviceId: number): Promise<ServiceAssignment[]> {
-    return await db.select().from(serviceAssignments).where(eq(serviceAssignments.serviceId, serviceId));
+  async getServiceAssignments(serviceId: number): Promise<any[]> {
+    return await db.query.serviceAssignments.findMany({
+      where: eq(serviceAssignments.serviceId, serviceId),
+      with: {
+        montador: true
+      }
+    });
   }
 
   async createServiceAssignment(insertAssignment: InsertServiceAssignment): Promise<ServiceAssignment> {

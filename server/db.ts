@@ -18,5 +18,10 @@ try {
   console.error("[DB] Invalid DATABASE_URL format provided");
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  max: 20, // Máximo de conexões no pool
+  idleTimeoutMillis: 30000, // Tempo de espera para fechar conexões ociosas
+  connectionTimeoutMillis: 2000, // Timeout para novas conexões
+});
 export const db = drizzle(pool, { schema });

@@ -39,7 +39,7 @@ export function ServiceTeamManager({ serviceId, open, onOpenChange }: ServiceTea
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[00px] h-[600px] flex flex-col">
+      <DialogContent className="sm:max-w-[600px] h-[600px] flex flex-col">
         <DialogHeader>
           <DialogTitle>Gerenciar Equipe do Serviço</DialogTitle>
         </DialogHeader>
@@ -57,17 +57,11 @@ export function ServiceTeamManager({ serviceId, open, onOpenChange }: ServiceTea
                <div className="text-center py-8 text-slate-500">Nenhum montador na equipe ainda.</div>
             ) : (
                 <div className="space-y-4">
-                  {assignments?.map((assignment: any) => {
+                   {assignments?.map((assignment: any) => {
                       if (assignment.status === 'removed') return null;
-                      const montador = assignment.montador; // Need to ensure backend returns joined data or fetch separately
-                      // For MVP, assume storage returns basic info or we join in frontend?
-                      // Wait, getServiceAssignments usually returns joined data if I used query builder or if I fetch profiles.
-                      // Let's assume for now I need to match with `montadores` list if assignments only gives IDs.
-                      // Actually storage method getServiceAssignments in pgTable usually returns just row.
-                      // I need to update storage to join or fetch profiles in hook.
-                      // To be safe/quick: I'll match with `montadores` list which has all.
                       
-                      const profile = montadores?.find(m => m.id === assignment.montadorId);
+                      // Using the joined data from backend
+                      const profile = assignment.montador; 
                       if (!profile) return null;
 
                       return (
@@ -75,29 +69,30 @@ export function ServiceTeamManager({ serviceId, open, onOpenChange }: ServiceTea
                            <div className="flex items-center gap-3">
                              <Avatar>
                                <AvatarImage src={profile.avatarUrl || undefined} />
-                               <AvatarFallback>{profile.fullName?.charAt(0)}</AvatarFallback>
+                               <AvatarFallback>{profile.fullName?.charAt(0) || '?'}</AvatarFallback>
                              </Avatar>
                              <div>
-                               <p className="font-medium">{profile.fullName}</p>
-                               <p className="text-xs text-slate-500 capitalize">{assignment.status}</p>
+                               <p className="font-medium text-sm">{profile.fullName || "Sem nome"}</p>
+                               <p className="text-[10px] text-slate-500 capitalize">{assignment.status}</p>
                              </div>
                            </div>
                            <div className="flex gap-2">
-                              {assignment.status === 'invited' && (
-                                <Badge variant="secondary">Aguardando</Badge>
-                              )}
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => updateAssignmentMutation?.mutate({ id: assignment.id, status: 'removed' })} // Optional chaining if undefined in typing
-                                title="Remover da equipe"
-                              >
-                                <X className="w-4 h-4 text-red-500" />
-                              </Button>
+                               {assignment.status === 'invited' && (
+                                 <Badge variant="secondary" className="text-[10px]">Aguardando</Badge>
+                               )}
+                               <Button 
+                                 variant="ghost" 
+                                 size="icon"
+                                 className="h-8 w-8 hover:bg-red-50"
+                                 onClick={() => updateAssignmentMutation?.mutate({ id: assignment.id, status: 'removed' })} 
+                                 title="Remover da equipe"
+                               >
+                                 <X className="w-4 h-4 text-red-400" />
+                               </Button>
                            </div>
                         </div>
                       );
-                  })}
+                   })}
                 </div>
             )}
           </TabsContent>

@@ -3,7 +3,7 @@ import { InsertProfile } from '@shared/schema';
 /**
  * Roles permitidos no sistema
  */
-export const ALLOWED_ROLES = ['montador', 'marcenaria', 'lojista'] as const;
+export const ALLOWED_ROLES = ['montador', 'marcenaria', 'lojista', 'partner', 'admin'] as const;
 export type AllowedRole = typeof ALLOWED_ROLES[number];
 
 /**

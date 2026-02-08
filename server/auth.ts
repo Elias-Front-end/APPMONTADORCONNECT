@@ -168,10 +168,14 @@ export function setupAuth(app: Express) {
       if (req.body.role) {
         try {
           logger.debug(`Creating initial profile for user ${user.id} with role ${req.body.role}`);
-          // Map "marcenaria" to "marcenaria" or "lojista" role, or generalize as "partner" if needed
-          // For now, let's use the enum values directly. 
-          // If user selected "empresa" (marcenaria in value), we store that.
-          const role = req.body.role === 'marcenaria' ? 'marcenaria' : 'montador';
+          // Map industry types or specific roles to valid userRoleEnum values
+          const roleMap: Record<string, any> = {
+            'marcenaria': 'marcenaria',
+            'lojista': 'lojista',
+            'montador': 'montador',
+            'partner': 'partner'
+          };
+          const role = roleMap[req.body.role] || 'montador';
           
           await storage.createProfile({
             id: user.id,

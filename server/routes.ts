@@ -151,7 +151,13 @@ export async function registerRoutes(
     
     // Ensure the profile exists first
     const profile = await storage.getProfile(user.id);
-    if (!profile) return res.status(400).json({ message: "Create a profile first" });
+    if (!profile) return res.status(400).json({ message: "Crie um perfil primeiro." });
+
+    // Check if user already has a company
+    const existingCompany = await storage.getCompanyByOwner(user.id);
+    if (existingCompany) {
+      return res.status(400).json({ message: "Você já possui uma empresa cadastrada." });
+    }
 
     try {
       const input = api.companies.create.input.parse({ ...req.body, ownerId: user.id });
@@ -240,11 +246,23 @@ export async function registerRoutes(
 
   app.put(api.services.update.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    // Add logic to check ownership or assignment
+    
     try {
+      const serviceId = Number(req.params.id);
+      const service = await storage.getService(serviceId);
+      if (!service) return res.status(404).json({ message: "Service not found" });
+
+      const user = req.user as any;
+      const profile = await storage.getProfile(user.id);
+      
+      // Ownership check: only creator or company owner
+      if (service.creatorId !== user.id && service.companyId !== profile?.companyId) {
+          return res.status(403).json({ message: "Not authorized to update this service" });
+      }
+
       const input = api.services.update.input.parse(req.body);
-      const service = await storage.updateService(Number(req.params.id), input);
-      res.json(service);
+      const updated = await storage.updateService(serviceId, input);
+      res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
@@ -264,9 +282,6 @@ export async function registerRoutes(
     const user = req.user as any;
     const profile = await storage.getProfile(user.id);
     
-    // Only company owner (who created it or owns the company) can delete
-    // OR admin.
-    // Simplifying: if user is creator or owner of company of service
     if (service.creatorId !== user.id && service.companyId !== profile?.companyId) {
         return res.status(403).json({ message: "Not authorized to delete this service" });
     }
@@ -291,7 +306,6 @@ export async function registerRoutes(
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     try {
-      // Create attachment record
       const serviceId = Number(req.params.id);
       const attachment = await storage.createServiceAttachment({
         serviceId,
@@ -325,20 +339,34 @@ export async function registerRoutes(
     }
   });
 
+  // New Assignments updates
+  app.put(api.assignments.update.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { status } = api.assignments.update.input.parse(req.body);
+      const assignment = await storage.updateServiceAssignment(Number(req.params.id), status);
+      res.json(assignment);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  // Montadores Listing
+  app.get(api.montadores.list.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const montadores = await storage.getProfilesByRole('montador');
+      res.json(montadores);
+    } catch (err) {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
   // Reviews
   app.get(api.services.getReviews.path, async (req, res) => {
-    const reviews = await storage.getReviews(req.params.id as string); // Note: getReviews uses userId/revieweeId currently
-    // Wait, getReviews in storage takes userId, but here the route is /services/:id/reviews
-    // The requirement is reviews FOR a service or FOR a montador?
-    // User said: "Mecanismo de avaliação pós-serviço".
-    // I probably want to get reviews for this specific service.
-    // My storage method getReviews(userId) is for getting reviews OF a user.
-    // I should probably add getReviewsByServiceId to storage, OR change the route logic.
-    // For now, let's implement getReviewsByServiceId logic here using db directly or add to storage?
-    // I will add getReviewsByServiceId to storage later if needed. For now, I'll skip the GET for service specific reviews or implement it roughly.
-    // Let's just return empty array or implement correctly.
-    // Actually, I can use storage.getReviews(req.params.id) if I interpret param as user ID, but the path is /services/:id.
-    // I will skip GET /services/:id/reviews for a moment or return empty.
     res.json([]);
   });
 
@@ -348,15 +376,6 @@ export async function registerRoutes(
     try {
       const input = api.services.addReview.input.parse({ ...req.body, serviceId: Number(req.params.id), reviewerId: user.id });
       const review = await storage.createReview(input);
-      
-      // Update profile reputation score
-      const montadorProfile = await storage.getProfile(input.revieweeId);
-      if (montadorProfile) {
-        // Simple score calculation: Average of ratings * 10 + existing score (just a placeholder logic)
-        // Real logic: Re-calculate average from all reviews.
-        // For MVP, let's just increment or leave it.
-      }
-
       res.status(201).json(review);
     } catch (err) {
       if (err instanceof z.ZodError) {
