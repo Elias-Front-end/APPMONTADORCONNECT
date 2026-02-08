@@ -12,7 +12,7 @@ import {
   type Review, type InsertReview, reviews
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, inArray, exists } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -33,7 +33,13 @@ export interface IStorage {
   updateCompany(id: number, company: Partial<InsertCompany>): Promise<Company>;
 
   // Services
-  getServices(filters?: { status?: string, companyId?: number }): Promise<Service[]>;
+  getServices(filters?: { 
+    status?: string, 
+    companyId?: number, 
+    userId?: string, 
+    userRole?: string,
+    montadorLevel?: string 
+  }): Promise<Service[]>;
   getService(id: number): Promise<Service | undefined>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: number, service: Partial<InsertService>): Promise<Service>;
@@ -134,16 +140,68 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Services
-  async getServices(filters?: { status?: string, companyId?: number }): Promise<Service[]> {
+  async getServices(filters?: { 
+    status?: string, 
+    companyId?: number, 
+    userId?: string, 
+    userRole?: string,
+    montadorLevel?: string
+  }): Promise<Service[]> {
+    const QUALIFICATION_LEVELS = ["iniciante", "intermediario", "avancado", "especialista"];
+    
     let query = db.select().from(services);
     const conditions = [];
-    
+
+    // Filter by explicit company/status if provided
     if (filters?.status) {
       // @ts-ignore
       conditions.push(eq(services.status, filters.status));
     }
     if (filters?.companyId) {
       conditions.push(eq(services.companyId, filters.companyId));
+    }
+
+    // --- Privacy & Visibility Logic ---
+    if (filters?.userRole === "admin") {
+      // Admins see everything matching explicit filters
+    } else if (filters?.userRole === "montador" && filters.userId) {
+      // Montador visibility rules:
+      // 1. Must be published (unless assigned, but that's a different view)
+      conditions.push(eq(services.status, "published"));
+
+      // 2. OR (Satisfies Qualification OR is Partner)
+      const visibleLevels = filters.montadorLevel 
+        ? QUALIFICATION_LEVELS.slice(0, QUALIFICATION_LEVELS.indexOf(filters.montadorLevel) + 1)
+        : ["iniciante"]; // Default to lowest if not set
+
+      const qualificationCondition = inArray(services.minQualification, visibleLevels as any);
+      
+      const partnershipCondition = exists(
+        db.select()
+          .from(partnerships)
+          .where(
+            and(
+              eq(partnerships.montadorId, filters.userId),
+              eq(partnerships.companyId, services.companyId),
+              eq(partnerships.status, "active")
+            )
+          )
+      );
+
+      conditions.push(or(qualificationCondition, partnershipCondition)!);
+    } else if (filters?.userId && ["partner", "marcenaria", "lojista"].includes(filters.userRole || "")) {
+      // Companies see their own services OR where they are partners?
+      // For now, if companyId filter is not present, we default to showing their own if they are creators
+      if (!filters.companyId) {
+         // Get the company of this user
+         const profile = await this.getProfile(filters.userId);
+         if (profile?.companyId) {
+           conditions.push(eq(services.companyId, profile.companyId));
+         } else {
+           // If they have no company yet, they see nothing
+           return [];
+         }
+      }
     }
 
     if (conditions.length > 0) {

@@ -203,6 +203,10 @@ export async function registerRoutes(
 
   // Services
   app.get(api.services.list.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+    const user = req.user as any;
+    const profile = await storage.getProfile(user.id);
+    
     // Parse query
     const status = req.query.status as string | undefined;
     const companyId = req.query.companyId ? Number(req.query.companyId) : undefined;
@@ -210,7 +214,13 @@ export async function registerRoutes(
     // Validate status enum
     const validStatus = status && serviceStatusEnum.enumValues.includes(status as any) ? status : undefined;
     
-    const services = await storage.getServices({ status: validStatus, companyId });
+    const services = await storage.getServices({ 
+      status: validStatus, 
+      companyId,
+      userId: user.id,
+      userRole: profile?.role,
+      montadorLevel: profile?.level || undefined
+    });
     res.json(services);
   });
 
