@@ -3,12 +3,14 @@ import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { ServiceForm } from "@/components/service-form";
 import { useToast } from "@/hooks/use-toast";
+import { useAlert } from "@/hooks/use-alert";
 import { useProfile } from "@/hooks/use-profiles";
 import { useCompany } from "@/hooks/use-companies";
 
 export default function CreateServicePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { showAlert } = useAlert();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   
@@ -52,11 +54,12 @@ export default function CreateServicePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      toast({
-        title: "Serviço criado com sucesso!",
-        description: "A ordem de serviço já está disponível para montadores.",
+      showAlert({
+        title: "Serviço Criado!",
+        message: "A ordem de serviço já está disponível para montadores.",
+        type: "success",
+        onConfirm: () => setLocation("/services")
       });
-      setLocation("/services");
     },
     onError: (error: Error) => {
       let msg = error.message;
@@ -66,10 +69,10 @@ export default function CreateServicePage() {
           if (parsed.message) msg = parsed.message;
       } catch (e) {}
 
-      toast({
-        title: "Erro ao criar serviço",
-        description: msg,
-        variant: "destructive",
+      showAlert({
+        title: "Erro ao Criar Serviço",
+        message: msg,
+        type: "error",
       });
     },
   });

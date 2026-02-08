@@ -16,6 +16,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { isValidCPF, isValidCNPJ } from "@shared/validation";
 import { useAuth } from "@/hooks/use-auth";
+import { useAlert } from "@/hooks/use-alert";
 
 // --- Schemas com validação reforçada ---
 
@@ -43,6 +44,7 @@ const companyFormSchema = insertCompanySchema.omit({ ownerId: true }).extend({
 export default function OnboardingPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { showAlert } = useAlert();
   const queryClient = useQueryClient();
   const { logoutMutation } = useAuth();
   const [step, setStep] = useState<"role" | "details">("role");
@@ -119,7 +121,11 @@ export default function OnboardingPage() {
         if (parsed.message) message = parsed.message;
       } catch (e) {}
       
-      toast({ title: "Erro ao salvar perfil", description: message, variant: "destructive" });
+      showAlert({
+        title: "Erro no Perfil",
+        message: message,
+        type: "error"
+      });
     }
   });
 
@@ -145,7 +151,14 @@ export default function OnboardingPage() {
             const parsed = JSON.parse(err.message);
             if (parsed.message) message = parsed.message;
         } catch (e) {}
-        toast({ title: "Erro ao criar empresa", description: message, variant: "destructive" });
+
+        const isConflict = message.includes("já está cadastrado");
+        
+        showAlert({
+            title: isConflict ? "Conflito de Dados" : "Erro no Cadastro",
+            message: message,
+            type: "error"
+        });
     }
   });
 

@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTeamManagement } from "@/hooks/use-team-management";
 import { Loader2, UserPlus, X, Check, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useAlert } from "@/hooks/use-alert";
 import { Badge } from "@/components/ui/badge";
 
 interface ServiceTeamManagerProps {
@@ -29,6 +30,7 @@ export function ServiceTeamManager({ serviceId, open, onOpenChange }: ServiceTea
     inviteMutation,
     updateAssignmentMutation
   } = useTeamManagement(serviceId);
+  const { showAlert } = useAlert();
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -84,7 +86,16 @@ export function ServiceTeamManager({ serviceId, open, onOpenChange }: ServiceTea
                                  variant="ghost" 
                                  size="icon"
                                  className="h-8 w-8 hover:bg-red-50"
-                                 onClick={() => updateAssignmentMutation?.mutate({ id: assignment.id, status: 'removed' })} 
+                                 onClick={() => {
+                                   showAlert({
+                                     title: "Confirmar Remoção",
+                                     message: `Deseja realmente remover ${profile.fullName} da equipe?`,
+                                     type: "warning",
+                                     confirmText: "Remover",
+                                     cancelText: "Cancelar",
+                                     onConfirm: () => updateAssignmentMutation?.mutate({ id: assignment.id, status: 'removed' })
+                                   });
+                                 }} 
                                  title="Remover da equipe"
                                >
                                  <X className="w-4 h-4 text-red-400" />

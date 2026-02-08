@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { Profile, ServiceAssignment } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
+import { useAlert } from "@/hooks/use-alert";
 
 export function useTeamManagement(serviceId?: number) {
-  const { toast } = useToast();
+  const { showAlert } = useAlert();
   const queryClient = useQueryClient();
 
   // 1. List all available montadores
@@ -47,11 +47,19 @@ export function useTeamManagement(serviceId?: number) {
        return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Convite enviado com sucesso!" });
-      queryClient.invalidateQueries({ queryKey: [api.services.getAssignments.path, serviceId] });
+       showAlert({
+         title: "Convite Enviado",
+         message: "O montador foi convidado para o serviço com sucesso.",
+         type: "success"
+       });
+       queryClient.invalidateQueries({ queryKey: [api.services.getAssignments.path, serviceId] });
     },
-    onError: (err: Error) => {
-      toast({ title: "Erro ao convidar", description: err.message, variant: "destructive" });
+     onError: (err: Error) => {
+       showAlert({
+         title: "Erro ao Convidar",
+         message: err.message,
+         type: "error"
+       });
     }
   });
 
@@ -67,8 +75,12 @@ export function useTeamManagement(serviceId?: number) {
        if (!res.ok) throw new Error("Falha ao atualizar");
        return res.json();
     },
-    onSuccess: () => {
-        toast({ title: "Status atualizado!" });
+     onSuccess: () => {
+        showAlert({
+          title: "Status Atualizado",
+          message: "A atribuição foi atualizada com sucesso.",
+          type: "success"
+        });
         queryClient.invalidateQueries({ queryKey: [api.services.getAssignments.path, serviceId] });
     }
   });

@@ -15,6 +15,7 @@ import { Loader2, Calendar, MapPin, User, Download, FileText, CheckCircle, Alert
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { useAlert } from "@/hooks/use-alert";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ export default function ServiceDetailsPage() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
   const { toast } = useToast();
+  const { showAlert } = useAlert();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -61,11 +63,19 @@ export default function ServiceDetailsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/services/${serviceId}`] });
-      toast({ title: "Serviço atualizado!", description: "As informações foram salvas." });
+      showAlert({
+        title: "Sucesso!",
+        message: "As informações do serviço foram atualizadas.",
+        type: "success"
+      });
       setIsEditing(false);
     },
     onError: (err: any) => {
-      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
+      showAlert({
+        title: "Erro ao Atualizar",
+        message: err.message,
+        type: "error"
+      });
     }
   });
 
@@ -85,7 +95,33 @@ export default function ServiceDetailsPage() {
       toast({ title: "Arquivo anexado!", description: "O documento foi adicionado com sucesso." });
     },
     onError: () => {
-      toast({ title: "Erro no upload", description: "Não foi possível enviar o arquivo.", variant: "destructive" });
+      showAlert({
+        title: "Erro no Upload",
+        message: "Não foi possível enviar o arquivo. Verifique o tamanho e formato.",
+        type: "error"
+      });
+    }
+  });
+
+  const deleteServiceMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/services/${serviceId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      showAlert({
+        title: "Serviço Excluído",
+        message: "A ordem de serviço foi removida permanentemente.",
+        type: "success",
+        onConfirm: () => setLocation("/services")
+      });
+    },
+    onError: (err: any) => {
+      showAlert({
+        title: "Erro ao Excluir",
+        message: err.message,
+        type: "error"
+      });
     }
   });
 
@@ -157,7 +193,22 @@ export default function ServiceDetailsPage() {
            ) : (
              <>
                 <Button variant="outline" onClick={() => setIsEditing(true)}>Editar Dados</Button>
-                <Button variant="outline" onClick={() => setIsEditing(true)}>Editar Dados</Button>
+                <Button 
+                  variant="outline" 
+                  className="text-red-600 hover:bg-red-50 border-red-100"
+                  onClick={() => {
+                    showAlert({
+                      title: "Excluir Serviço",
+                      message: "Tem certeza que deseja excluir esta ordem de serviço? Esta ação não pode ser desfeita.",
+                      type: "warning",
+                      confirmText: "Excluir permanentemente",
+                      cancelText: "Cancelar",
+                      onConfirm: () => deleteServiceMutation.mutate()
+                    });
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                </Button>
                 {service.status === 'completed' && service.montadorId && (
                     <Button 
                       className="bg-green-600 hover:bg-green-700"
@@ -183,7 +234,10 @@ export default function ServiceDetailsPage() {
 
       {isEditing ? (
         <ServiceForm 
-            defaultValues={service} 
+            defaultValues={{
+              ...service,
+              price: service.price || 0
+            }} 
             onSubmit={async (data) => updateServiceMutation.mutateAsync(data)}
             isEditing={true}
             isSubmitting={updateServiceMutation.isPending}

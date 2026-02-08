@@ -199,8 +199,19 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
 }));
 
 // Schemas
-export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertProfileSchema = createInsertSchema(profiles).omit({ 
+  id: true, createdAt: true, updatedAt: true 
+}).extend({
+  cpf: z.string().nullable().transform(val => val ? val.replace(/\D/g, "") : val),
+  phone: z.string().nullable().transform(val => val ? val.replace(/\D/g, "") : val),
+});
+
+export const insertCompanySchema = createInsertSchema(companies).omit({ 
+  id: true, createdAt: true, updatedAt: true 
+}).extend({
+  cnpj: z.string().nullable().transform(val => val ? val.replace(/\D/g, "") : val),
+  phone: z.string().nullable().transform(val => val ? val.replace(/\D/g, "") : val),
+});
 export const insertPartnershipSchema = createInsertSchema(partnerships).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertServiceSchema = createInsertSchema(services).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
 export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({ id: true, createdAt: true, updatedAt: true });
