@@ -12,6 +12,8 @@ import express from "express";
 import { requireAuth } from "./middleware/auth";
 import { validateRole, sanitizeProfileInput } from "./utils/profile-utils";
 
+import { GovernanceService } from "./services/governance-service";
+import { ServiceLifecycle } from "./services/service-lifecycle";
 import { createLogger } from "./logger";
 
 const logger = createLogger("Routes");
@@ -77,7 +79,7 @@ export async function registerRoutes(
       // Sanitize input
       const sanitized = sanitizeProfileInput(input);
 
-      const profile = await storage.createProfile({ ...sanitized, id: user.id });
+      const profile = await storage.createProfile({ ...sanitized, id: user.id } as any);
       logger.info(`Profile created successfully for user ${user.id}`);
       res.status(201).json(profile);
     } catch (err) {
@@ -244,7 +246,15 @@ export async function registerRoutes(
         companyId: profile.companyId,
         creatorId: user.id
       });
-      const service = await storage.createService(input);
+
+      const service = await storage.createService({ 
+        ...input, 
+        companyId: profile.companyId,
+        creatorId: user.id,
+        status: "awaiting_montador" // MVP default for new services
+      });
+      
+      await GovernanceService.logAction("service_created", user.id, String(service.id));
       res.status(201).json(service);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -338,8 +348,30 @@ export async function registerRoutes(
   app.post(api.services.assign.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
-      const input = api.services.assign.input.parse({ ...req.body, serviceId: Number(req.params.id) });
-      const assignment = await storage.createServiceAssignment(input);
+      const serviceId = Number(req.params.id);
+      const service = await storage.getService(serviceId);
+      if (!service) return res.status(404).json({ message: "Service not found" });
+
+      const input = api.services.assign.input.parse({ ...req.body, serviceId });
+      
+      // MVP logic: check if already assigned
+      const existing = await storage.getServiceAssignments(serviceId);
+      if (existing.find((a: any) => a.montadorId === input.montadorId)) {
+        return res.status(400).json({ message: "Already applied to this service" });
+      }
+
+      const assignment = await storage.createServiceAssignment({
+        ...input,
+        status: "accepted", // In MVP, if it's open, montador "accepts" it
+        contractAccepted: true,
+        serviceRead: true
+      });
+
+      await GovernanceService.logAction("service_accepted", input.montadorId, String(serviceId));
+      
+      // Trigger team formation check
+      await ServiceLifecycle.checkTeamFormation(serviceId, input.montadorId);
+      
       res.status(201).json(assignment);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -349,19 +381,63 @@ export async function registerRoutes(
     }
   });
 
-  // New Assignments updates
-  app.put(api.assignments.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  // Completion confirmation
+  app.post("/api/services/:id/confirm-completion", requireAuth, async (req, res) => {
     try {
-      const { status } = api.assignments.update.input.parse(req.body);
-      const assignment = await storage.updateServiceAssignment(Number(req.params.id), status);
-      res.json(assignment);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      res.status(500).json({ message: "Internal Server Error" });
+      const serviceId = Number(req.params.id);
+      const user = req.user as any;
+      const profile = await storage.getProfile(user.id);
+      
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      const side = profile.role === "montador" ? "montador" : "company";
+      await ServiceLifecycle.confirmCompletion(serviceId, user.id, side);
+      
+      res.json({ message: "Completion confirmed" });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
+  });
+
+  // Admin: Moderation & Governance
+  app.get("/api/admin/pending-profiles", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const profile = await storage.getProfile(user.id);
+    if (profile?.role !== "admin") return res.sendStatus(403);
+    
+    const pending = await storage.getPendingProfiles();
+    res.json(pending);
+  });
+
+  app.post("/api/admin/approve-profile/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const adminProfile = await storage.getProfile(user.id);
+    if (adminProfile?.role !== "admin") return res.sendStatus(403);
+    
+    const profileId = String(req.params.id);
+    const updated = await storage.updateProfile(profileId, { status: "active" });
+    await GovernanceService.logAction("profile_approved", user.id, profileId);
+    res.json(updated);
+  });
+
+  app.post("/api/admin/block-profile/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const adminProfile = await storage.getProfile(user.id);
+    if (adminProfile?.role !== "admin") return res.sendStatus(403);
+    
+    const profileId = String(req.params.id);
+    const updated = await storage.updateProfile(profileId, { status: "blocked" });
+    await GovernanceService.logAction("profile_blocked", user.id, profileId);
+    res.json(updated);
+  });
+
+  app.get("/api/admin/audit-logs", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const adminProfile = await storage.getProfile(user.id);
+    if (adminProfile?.role !== "admin") return res.sendStatus(403);
+    
+    const logs = await storage.getAuditLogs();
+    res.json(logs);
   });
 
   // Montadores Listing

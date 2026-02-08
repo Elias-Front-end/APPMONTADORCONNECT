@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Service, ServiceAttachment, ServiceAssignment, Profile } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profiles";
+import { useConfirmCompletion } from "@/hooks/use-services";
 import { LayoutShell } from "@/components/layout-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -139,6 +140,8 @@ export default function ServiceDetailsPage() {
     }
   });
 
+  const confirmMutation = useConfirmCompletion();
+
 
   if (isLoadingService || !service) {
     return (
@@ -150,22 +153,26 @@ export default function ServiceDetailsPage() {
 
   const statusColors = {
     draft: "bg-slate-100 text-slate-700",
-    published: "bg-blue-100 text-blue-700",
-    scheduled: "bg-purple-100 text-purple-700",
+    awaiting_montador: "bg-blue-100 text-blue-700",
+    awaiting_team: "bg-indigo-100 text-indigo-700",
     in_progress: "bg-amber-100 text-amber-700",
+    completed_pending_confirmation: "bg-purple-100 text-purple-700",
+    completed_pending_evaluation: "bg-pink-100 text-pink-700",
     completed: "bg-green-100 text-green-700",
-    cancelled: "bg-red-100 text-red-700",
-    disputed: "bg-orange-100 text-orange-700",
+    cancelled_by_company: "bg-red-100 text-red-700",
+    cancelled_by_admin: "bg-red-200 text-red-800",
   };
 
   const statusLabels = {
     draft: "Rascunho",
-    published: "Publicado",
-    scheduled: "Agendado",
-    in_progress: "Em Execução",
-    completed: "Concluído",
-    cancelled: "Cancelado",
-    disputed: "Em Disputa",
+    awaiting_montador: "Buscando",
+    awaiting_team: "Formando Equipe",
+    in_progress: "Executando",
+    completed_pending_confirmation: "Aguardando Confirmação",
+    completed_pending_evaluation: "Aguardando Avaliação",
+    completed: "Finalizado",
+    cancelled_by_company: "Cancelado",
+    cancelled_by_admin: "Suspenso",
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,6 +225,24 @@ export default function ServiceDetailsPage() {
                     </Button>
                 )}
              </>
+           )}
+           {/* Completion flows */}
+           {(service.status === 'in_progress' || service.status === 'completed_pending_confirmation') && (
+             <Button 
+               className="bg-indigo-600 hover:bg-indigo-700"
+               onClick={() => {
+                 showAlert({
+                   title: "Confirmar Conclusão",
+                   message: `Você confirma que o serviço foi finalizado? ${profile?.role === 'montador' ? 'A empresa precisará confirmar também.' : 'O montador precisará confirmar também.'}`,
+                   type: "info",
+                   onConfirm: () => confirmMutation.mutate(service.id)
+                 });
+               }}
+               disabled={confirmMutation.isPending}
+             >
+               {confirmMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+               Finalizar Serviço
+             </Button>
            )}
         </div>
       </div>

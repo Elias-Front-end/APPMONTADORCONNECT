@@ -28,6 +28,7 @@ const formSchema = insertServiceSchema.omit({
   clientName: z.string().min(2, "Nome do cliente é obrigatório"),
   title: z.string().min(5, "Título do serviço é obrigatório"),
   price: z.coerce.number().min(0, "O valor deve ser positivo"),
+  requiredMontadoresCount: z.coerce.number().min(1, "Ao menos 1 montador é necessário").default(1),
 });
 
 type ServiceFormValues = z.infer<typeof formSchema> & { files?: File[] };
@@ -75,6 +76,7 @@ export function ServiceForm({ defaultValues, onSubmit, isSubmitting = false, isE
       minQualification: "iniciante",
       durationHours: 1,
       isUrgent: false,
+      requiredMontadoresCount: 1,
       // status: "draft", // Removed status from schema, so remove from defaults
       ...defaultValues,
     },
@@ -231,7 +233,27 @@ export function ServiceForm({ defaultValues, onSubmit, isSubmitting = false, isE
                 )}
               />
             </div>
-            
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <FormField
+                control={form.control}
+                name="requiredMontadoresCount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nº de Montadores</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="1"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <p className="text-xs text-slate-500 mt-1">Quantidade necessária para o serviço.</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             {/* Project Files Upload */}
             <div className="space-y-2">
                <FormLabel>Projeto / Manuais - <span className="font-normal text-slate-500">(Opcional)</span></FormLabel>

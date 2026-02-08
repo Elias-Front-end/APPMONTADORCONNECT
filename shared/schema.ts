@@ -8,7 +8,18 @@ export * from "./models/auth";
 
 // Enums
 export const userRoleEnum = pgEnum("user_role", ["montador", "partner", "admin", "marcenaria", "lojista"]);
-export const serviceStatusEnum = pgEnum("service_status", ["draft", "published", "scheduled", "in_progress", "completed", "cancelled", "disputed"]);
+export const userStatusEnum = pgEnum("user_status", ["pending", "active", "blocked"]);
+export const serviceStatusEnum = pgEnum("service_status", [
+  "draft", 
+  "awaiting_montador", 
+  "awaiting_team", 
+  "in_progress", 
+  "completed_pending_confirmation", 
+  "completed_pending_evaluation", 
+  "completed", 
+  "cancelled_by_company", 
+  "cancelled_by_admin"
+]);
 export const partnershipStatusEnum = pgEnum("partnership_status", ["pending", "active", "rejected", "blocked"]);
 export const complexityLevelEnum = pgEnum("complexity_level", ["low", "medium", "high", "expert"]);
 export const industryTypeEnum = pgEnum("industry_type", ["lojista", "marcenaria", "outros"]);
@@ -21,6 +32,7 @@ export const assignmentStatusEnum = pgEnum("assignment_status", ["invited", "acc
 export const profiles = pgTable("profiles", {
   id: text("id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   role: userRoleEnum("role").default("montador").notNull(),
+  status: userStatusEnum("status").default("pending").notNull(),
   fullName: text("full_name"),
   phone: text("phone"),
   avatarUrl: text("avatar_url"),
@@ -104,6 +116,8 @@ export const services = pgTable("services", {
   requiredSkills: text("required_skills").array(),
   documents: text("documents").array(),
   serviceDetails: jsonb("service_details").$type<Record<string, any>>().default({}),
+  requiredMontadoresCount: integer("required_montadores_count").default(1).notNull(),
+  isClosed: boolean("is_closed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   completedAt: timestamp("completed_at"),
@@ -126,6 +140,9 @@ export const serviceAssignments = pgTable("service_assignments", {
   serviceId: integer("service_id").references(() => services.id).notNull(),
   montadorId: text("montador_id").references(() => profiles.id).notNull(),
   status: assignmentStatusEnum("status").default("invited"),
+  contractAccepted: boolean("contract_accepted").default(false),
+  serviceRead: boolean("service_read").default(false),
+  isLeader: boolean("is_leader").default(false),
   assignedAt: timestamp("assigned_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -144,6 +161,25 @@ export const reviews = pgTable("reviews", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Governance Tables
+export const flags = pgTable("flags", {
+  id: serial("id").primaryKey(),
+  profileId: text("profile_id").references(() => profiles.id).notNull(),
+  serviceId: integer("service_id").references(() => services.id),
+  reason: text("reason").notNull(),
+  severity: integer("severity").default(1), // 1: Info, 2: Warning, 3: Critical
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  action: text("action").notNull(), // e.g., 'service_accept', 'user_blocked', 'status_change'
+  actorId: text("actor_id").references(() => profiles.id),
+  targetId: text("target_id"), // flexible ID (user uuid, service id, etc)
+  details: jsonb("details").$type<Record<string, any>>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const profilesRelations = relations(profiles, ({ one, many }) => ({
   user: one(users, { fields: [profiles.id], references: [users.id] }),
@@ -155,6 +191,8 @@ export const profilesRelations = relations(profiles, ({ one, many }) => ({
   calendarEvents: many(calendarEvents),
   receivedReviews: many(reviews, { relationName: "reviewee" }),
   givenReviews: many(reviews, { relationName: "reviewer" }),
+  flags: many(flags),
+  actions: many(auditLogs),
 }));
 
 export const companiesRelations = relations(companies, ({ one, many }) => ({
@@ -202,8 +240,8 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
 export const insertProfileSchema = createInsertSchema(profiles).omit({ 
   id: true, createdAt: true, updatedAt: true 
 }).extend({
-  cpf: z.string().nullable().transform(val => val ? val.replace(/\D/g, "") : val),
-  phone: z.string().nullable().transform(val => val ? val.replace(/\D/g, "") : val),
+  cpf: z.string().nullable().optional().transform(val => val ? val.replace(/\D/g, "") : (val === undefined ? null : val)),
+  phone: z.string().nullable().optional().transform(val => val ? val.replace(/\D/g, "") : (val === undefined ? null : val)),
 });
 
 export const insertCompanySchema = createInsertSchema(companies).omit({ 
@@ -213,11 +251,15 @@ export const insertCompanySchema = createInsertSchema(companies).omit({
   phone: z.string().nullable().transform(val => val ? val.replace(/\D/g, "") : val),
 });
 export const insertPartnershipSchema = createInsertSchema(partnerships).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertServiceSchema = createInsertSchema(services).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
+export const insertServiceSchema = createInsertSchema(services).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  completedAt: z.coerce.date().optional().nullable(),
+});
 export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertServiceAttachmentSchema = createInsertSchema(serviceAttachments).omit({ id: true, uploadedAt: true });
 export const insertServiceAssignmentSchema = createInsertSchema(serviceAssignments).omit({ id: true, assignedAt: true, updatedAt: true });
 export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, createdAt: true });
+export const insertFlagSchema = createInsertSchema(flags).omit({ id: true, createdAt: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 
 // Types
 export type Profile = typeof profiles.$inferSelect;
@@ -235,3 +277,7 @@ export type ServiceAssignment = typeof serviceAssignments.$inferSelect;
 export type InsertServiceAssignment = z.infer<typeof insertServiceAssignmentSchema>;
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type Flag = typeof flags.$inferSelect;
+export type InsertFlag = z.infer<typeof insertFlagSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;

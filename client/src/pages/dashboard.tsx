@@ -3,6 +3,7 @@ import { useProfile } from "@/hooks/use-profiles";
 import { useServices } from "@/hooks/use-services";
 import { ServiceCard } from "@/components/service-card";
 import { CompanyDashboard } from "@/components/company-dashboard";
+import { AdminDashboard } from "@/components/admin-dashboard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,6 +62,24 @@ export default function Dashboard() {
           </div>
         </div>
         <CompanyDashboard companyId={profile.companyId} />
+      </div>
+    );
+  }
+
+  if (profile.role === 'admin') {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-slate-900">
+              Painel Administrativo
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Governança e auditoria do MVP Montador Conecta
+            </p>
+          </div>
+        </div>
+        <AdminDashboard />
       </div>
     );
   }

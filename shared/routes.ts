@@ -59,6 +59,7 @@ export const api = {
 
     getReviews: { method: 'GET' as const, path: '/api/services/:id/reviews', responses: { 200: z.array(z.custom<typeof reviews.$inferSelect>()) } },
     addReview: { method: 'POST' as const, path: '/api/services/:id/reviews', input: insertReviewSchema, responses: { 201: z.custom<typeof reviews.$inferSelect>(), 400: errorSchemas.validation } },
+    confirmCompletion: { method: 'POST' as const, path: '/api/services/:id/confirm-completion', responses: { 200: z.object({ message: z.string() }), 400: errorSchemas.validation } },
   },
   calendar: {
     list: { method: 'GET' as const, path: '/api/calendar', responses: { 200: z.array(z.custom<typeof calendarEvents.$inferSelect>()) } },
@@ -76,6 +77,12 @@ export const api = {
   },
   assignments: {
     update: { method: 'PUT' as const, path: '/api/assignments/:id', input: z.object({ status: z.enum(assignmentStatusEnum.enumValues) }), responses: { 200: z.custom<typeof serviceAssignments.$inferSelect>(), 400: errorSchemas.validation, 404: errorSchemas.notFound } }
+  },
+  admin: {
+    pendingProfiles: { method: 'GET' as const, path: '/api/admin/pending-profiles', responses: { 200: z.array(z.custom<typeof profiles.$inferSelect>()) } },
+    approveProfile: { method: 'POST' as const, path: '/api/admin/approve-profile/:id', responses: { 200: z.custom<typeof profiles.$inferSelect>() } },
+    blockProfile: { method: 'POST' as const, path: '/api/admin/block-profile/:id', responses: { 200: z.custom<typeof profiles.$inferSelect>() } },
+    auditLogs: { method: 'GET' as const, path: '/api/admin/audit-logs', responses: { 200: z.array(z.any()) } },
   }
 };
 

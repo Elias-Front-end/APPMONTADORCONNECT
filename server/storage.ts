@@ -9,7 +9,9 @@ import {
   serviceStatusEnum,
   type ServiceAttachment, type InsertServiceAttachment, serviceAttachments,
   type ServiceAssignment, type InsertServiceAssignment, serviceAssignments,
-  type Review, type InsertReview, reviews
+  type Review, type InsertReview, reviews,
+  type Flag, type InsertFlag, flags,
+  type AuditLog, type InsertAuditLog, auditLogs
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, inArray, exists } from "drizzle-orm";
@@ -71,6 +73,15 @@ export interface IStorage {
 
   // Profiles Extra
   getProfilesByRole(role: string): Promise<Profile[]>;
+  getPendingProfiles(): Promise<Profile[]>;
+
+  // Flags & Governance
+  getFlags(profileId: string): Promise<Flag[]>;
+  createFlag(flag: InsertFlag): Promise<Flag>;
+  
+  // Audit Logs
+  getAuditLogs(): Promise<AuditLog[]>;
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -140,23 +151,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Services
-  async getServices(filters?: { 
-    status?: string, 
-    companyId?: number, 
-    userId?: string, 
+  async getServices(filters?: {
+    status?: string,
+    companyId?: number,
+    userId?: string,
     userRole?: string,
-    montadorLevel?: string
+    montadorLevel?: string,
+    montadorStatus?: string
   }): Promise<Service[]> {
     const QUALIFICATION_LEVELS = ["iniciante", "intermediario", "avancado", "especialista"];
-    
+
     let query = db.select().from(services);
     const conditions = [];
 
-    // Filter by explicit company/status if provided
+    // Profile status restriction: Pendente/Bloqueado users see limited services
+    if (filters?.userRole === "montador" && filters.montadorStatus !== "active") {
+      // Pending or Blocked montadores see nothing or very limited
+      // MVP says: "Pendente -> acesso limitado", "Bloqueado -> acesso ao painel sem ações"
+      // Usually they shouldn't see available jobs yet.
+      return [];
+    }
+
+    // Filter by explicit status if provided
     if (filters?.status) {
       // @ts-ignore
       conditions.push(eq(services.status, filters.status));
+    } else if (filters?.userRole === "montador") {
+      // Default view for montadors: services looking for people
+      conditions.push(or(
+        eq(services.status, "awaiting_montador"),
+        eq(services.status, "awaiting_team")
+      )!);
     }
+
     if (filters?.companyId) {
       conditions.push(eq(services.companyId, filters.companyId));
     }
@@ -165,17 +192,16 @@ export class DatabaseStorage implements IStorage {
     if (filters?.userRole === "admin") {
       // Admins see everything matching explicit filters
     } else if (filters?.userRole === "montador" && filters.userId) {
-      // Montador visibility rules:
-      // 1. Must be published (unless assigned, but that's a different view)
-      conditions.push(eq(services.status, "published"));
+      // 1. Service must be in a state accepting applications
+      // (already handled by default status filter above if status not provided)
 
-      // 2. OR (Satisfies Qualification OR is Partner)
-      const visibleLevels = filters.montadorLevel 
+      // 2. Satisfies Qualification OR is Partner
+      const visibleLevels = filters.montadorLevel
         ? QUALIFICATION_LEVELS.slice(0, QUALIFICATION_LEVELS.indexOf(filters.montadorLevel) + 1)
         : ["iniciante"]; // Default to lowest if not set
 
       const qualificationCondition = inArray(services.minQualification, visibleLevels as any);
-      
+
       const partnershipCondition = exists(
         db.select()
           .from(partnerships)
@@ -324,6 +350,30 @@ export class DatabaseStorage implements IStorage {
 
   async getProfilesByRole(role: string): Promise<Profile[]> {
     return await db.select().from(profiles).where(eq(profiles.role, role as any));
+  }
+
+  async getPendingProfiles(): Promise<Profile[]> {
+    return await db.select().from(profiles).where(eq(profiles.status, "pending"));
+  }
+
+  // Flags
+  async getFlags(profileId: string): Promise<Flag[]> {
+    return await db.select().from(flags).where(eq(flags.profileId, profileId));
+  }
+
+  async createFlag(insertFlag: InsertFlag): Promise<Flag> {
+    const [flag] = await db.insert(flags).values(insertFlag).returning();
+    return flag;
+  }
+
+  // Audit Logs
+  async getAuditLogs(): Promise<AuditLog[]> {
+    return await db.select().from(auditLogs).orderBy(auditLogs.createdAt);
+  }
+
+  async createAuditLog(insertLog: InsertAuditLog): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(insertLog).returning();
+    return log;
   }
 }
 

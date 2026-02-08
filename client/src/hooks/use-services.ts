@@ -100,3 +100,25 @@ export function useUpdateService() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.services.list.path] }),
   });
 }
+
+export function useConfirmCompletion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = `${api.services.confirmCompletion.path.replace(':id', String(id))}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to confirm completion");
+      }
+      return await res.json();
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: [api.services.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.services.get.path, id] });
+    },
+  });
+}

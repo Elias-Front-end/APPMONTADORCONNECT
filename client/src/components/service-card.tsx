@@ -16,22 +16,26 @@ export function ServiceCard({ service }: ServiceCardProps) {
   
   const statusColors = {
     draft: "bg-slate-100 text-slate-700",
-    published: "bg-blue-100 text-blue-700",
-    scheduled: "bg-purple-100 text-purple-700",
+    awaiting_montador: "bg-blue-100 text-blue-700",
+    awaiting_team: "bg-indigo-100 text-indigo-700",
     in_progress: "bg-amber-100 text-amber-700",
+    completed_pending_confirmation: "bg-purple-100 text-purple-700",
+    completed_pending_evaluation: "bg-pink-100 text-pink-700",
     completed: "bg-green-100 text-green-700",
-    cancelled: "bg-red-100 text-red-700",
-    disputed: "bg-orange-100 text-orange-700",
+    cancelled_by_company: "bg-red-100 text-red-700",
+    cancelled_by_admin: "bg-red-200 text-red-800",
   };
 
   const statusLabels = {
     draft: "Rascunho",
-    published: "Disponível",
-    scheduled: "Agendado",
-    in_progress: "Em Progresso",
-    completed: "Concluído",
-    cancelled: "Cancelado",
-    disputed: "Em Disputa",
+    awaiting_montador: "Buscando",
+    awaiting_team: "Formando Equipe",
+    in_progress: "Executando",
+    completed_pending_confirmation: "Aguardando Confirmação",
+    completed_pending_evaluation: "Aguardando Avaliação",
+    completed: "Finalizado",
+    cancelled_by_company: "Cancelado",
+    cancelled_by_admin: "Suspenso",
   };
 
   return (
