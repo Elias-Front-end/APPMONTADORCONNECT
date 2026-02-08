@@ -68,6 +68,9 @@ export function useAuth() {
     onSuccess: (user) => {
       console.log(`[Auth] Login successful for: ${user.username}`);
       queryClient.setQueryData(["/api/auth/user"], user);
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/companies"] }); // Invalidate company data too
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
     },
     onError: (error) => {
       console.error(`[Auth] Login failed:`, error);
@@ -82,6 +85,7 @@ export function useAuth() {
     onSuccess: (user) => {
       console.log(`[Auth] Registration successful for: ${user.username}`);
       queryClient.setQueryData(["/api/auth/user"], user);
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles/me"] });
     },
     onError: (error) => {
       console.error(`[Auth] Registration failed:`, error);
@@ -96,6 +100,10 @@ export function useAuth() {
     onSuccess: () => {
       console.log(`[Auth] Logout successful`);
       queryClient.setQueryData(["/api/auth/user"], null);
+      queryClient.setQueryData(["/api/profiles/me"], null); // Clear profile data immediately
+      queryClient.removeQueries({ queryKey: ["/api/profiles/me"] });
+      queryClient.removeQueries({ queryKey: ["/api/companies"] });
+      queryClient.resetQueries(); // Reset all queries to clear any other user data
     },
     onError: (error) => {
       console.error(`[Auth] Logout failed:`, error);

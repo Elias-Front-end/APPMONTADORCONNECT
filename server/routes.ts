@@ -160,10 +160,18 @@ export async function registerRoutes(
       await storage.updateProfile(user.id, { companyId: company.id });
       res.status(201).json(company);
     } catch (err) {
+      if (err instanceof Error && 'code' in err && (err as any).code === '23505') {
+        const target = (err as any).constraint;
+        if (target?.includes('cnpj')) {
+          return res.status(409).json({ message: "Este CNPJ já está cadastrado." });
+        }
+        return res.status(409).json({ message: "Dados duplicados (CNPJ ou outro campo único)." });
+      }
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
-      res.status(500).json({ message: "Internal Server Error" });
+      logger.error("Error creating company:", err);
+      res.status(500).json({ message: "Erro interno ao criar empresa" });
     }
   });
 
