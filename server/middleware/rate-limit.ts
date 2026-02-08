@@ -6,7 +6,7 @@ const logger = createLogger('RateLimit');
 // Rate limiter para rotas de autenticação
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 5, // 5 tentativas por janela
+  max: 100, // 100 tentativas por janela (Aumentado para testes)
   message: 'Muitas tentativas de login. Tente novamente em 15 minutos.',
   standardHeaders: true, // Retorna info de rate limit nos headers `RateLimit-*`
   legacyHeaders: false, // Desabilita headers `X-RateLimit-*`
