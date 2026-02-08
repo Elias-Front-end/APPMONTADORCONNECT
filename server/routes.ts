@@ -47,7 +47,7 @@ export async function registerRoutes(
   setupAuth(app);
 
   // Profiles
-  app.get(api.profiles.me.path, requireAuth, async (req, res) => {
+  app.get(api.profiles.me.path, requireAuth, async (req, res, next) => {
     const user = req.user as any;
     logger.debug(`Fetching profile for user: ${user.username} (ID: ${user.id})`);
     try {
@@ -59,7 +59,7 @@ export async function registerRoutes(
       res.json(profile);
     } catch (err) {
       logger.error(`Error fetching profile for user ${user.id}:`, err);
-      res.status(500).json({ message: "Internal Server Error" });
+      next(err);
     }
   });
 
