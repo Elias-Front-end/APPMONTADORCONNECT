@@ -24,14 +24,23 @@ interface CompanyDashboardProps {
   companyId: number;
 }
 
+import { ServiceTeamManager } from "@/components/service-team-manager";
+
 export function CompanyDashboard({ companyId }: CompanyDashboardProps) {
   const { data: services, isLoading } = useServices({ companyId });
+  const [teamManagerOpen, setTeamManagerOpen] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
 
   if (isLoading) {
     return <div>Carregando dashboard...</div>;
   }
 
   const activeServices = services?.filter(s => s.status !== 'cancelled' && s.status !== 'completed') || [];
+
+  const handleManageTeam = (serviceId: number) => {
+    setSelectedServiceId(serviceId);
+    setTeamManagerOpen(true);
+  };
   
   return (
     <div className="space-y-8">
@@ -57,15 +66,27 @@ export function CompanyDashboard({ companyId }: CompanyDashboardProps) {
         </div>
         <Card>
           <CardContent className="p-0">
-             <ActiveServicesList services={activeServices} />
+             <ActiveServicesList 
+               services={activeServices} 
+               onManageTeam={handleManageTeam}
+             />
           </CardContent>
         </Card>
       </section>
+
+      {/* Team Manager Modal */}
+      {selectedServiceId && (
+        <ServiceTeamManager 
+          serviceId={selectedServiceId} 
+          open={teamManagerOpen} 
+          onOpenChange={setTeamManagerOpen} 
+        />
+      )}
     </div>
   );
 }
 
-function ActiveServicesList({ services }: { services: Service[] }) {
+function ActiveServicesList({ services, onManageTeam }: { services: Service[], onManageTeam: (id: number) => void }) {
   const deleteMutation = useDeleteService();
   const { toast } = useToast();
 
@@ -122,7 +143,7 @@ function ActiveServicesList({ services }: { services: Service[] }) {
                       Editar
                     </DropdownMenuItem>
                   </Link>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onManageTeam(service.id)}>
                     <Users className="w-4 h-4 mr-2" />
                     Gerenciar Equipe
                   </DropdownMenuItem>

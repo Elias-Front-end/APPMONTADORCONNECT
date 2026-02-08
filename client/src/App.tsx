@@ -158,13 +158,17 @@ function Router() {
 }
 
 
+import { AlertProvider } from "@/hooks/use-alert";
+
 function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <Toaster />
-          <Router />
+          <AlertProvider>
+            <Toaster />
+            <Router />
+          </AlertProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>

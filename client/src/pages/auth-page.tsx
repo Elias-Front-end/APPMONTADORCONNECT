@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
+import { useAlert } from "@/hooks/use-alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,6 +27,7 @@ type AuthFormValues = z.infer<typeof authSchema>;
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
+  const { showAlert } = useAlert();
   const [, setLocation] = useLocation();
   // Modes: selection (initial), login, role_selection (new), register (final)
   const [mode, setMode] = useState<"selection" | "login" | "role_selection" | "register">("selection");
@@ -51,11 +53,27 @@ export default function AuthPage() {
 
   const onSubmit = (data: AuthFormValues) => {
     if (mode === "login") {
-      loginMutation.mutate(data);
+      loginMutation.mutate(data, {
+        onError: (error: Error) => {
+          showAlert({
+            title: "Falha no Login",
+            message: error.message || "Verifique suas credenciais e tente novamente.",
+            type: "error"
+          });
+        }
+      });
     } else if (mode === "register") {
       registerMutation.mutate({
         ...data,
-        role: selectedRole || undefined // Send selected role to backend
+        role: selectedRole || undefined
+      }, {
+        onError: (error: Error) => {
+          showAlert({
+            title: "Erro no Cadastro",
+            message: error.message || "Não foi possível criar sua conta. Tente novamente.",
+            type: "error"
+          });
+        }
       });
     }
   };

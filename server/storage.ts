@@ -62,6 +62,9 @@ export interface IStorage {
   createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
   updateCalendarEvent(id: number, event: Partial<InsertCalendarEvent>): Promise<CalendarEvent>;
   deleteCalendarEvent(id: number): Promise<void>;
+
+  // Profiles Extra
+  getProfilesByRole(role: string): Promise<Profile[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -254,6 +257,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCalendarEvent(id: number): Promise<void> {
     await db.delete(calendarEvents).where(eq(calendarEvents.id, id));
+  }
+
+  async getProfilesByRole(role: string): Promise<Profile[]> {
+    return await db.select().from(profiles).where(eq(profiles.role, role as any));
   }
 }
 
